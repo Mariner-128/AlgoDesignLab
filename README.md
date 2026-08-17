@@ -1,6 +1,7 @@
 # 🧠 算法设计与分析学习平台 (AlgoLab)
 
 [![GitHub](https://img.shields.io/badge/GitHub-AlgoDesignLab-181717?logo=github)](https://github.com/Mariner-128/AlgoDesignLab)
+[![GitHub Pages](https://img.shields.io/badge/GitHub%20Pages-在线预览-2ea44f?logo=githubpages)](https://mariner-128.github.io/AlgoDesignLab/)
 
 一个**完全离线、开箱即用**的算法学习应用：覆盖《算法设计与分析》全部知识点（**13 章 71 个小节**），每个知识点均包含**理论精讲、可运行的 C/Python 案例代码（共 142 段，全部实测通过）、中等偏上难度练习题（240+ 道，含提示与详解）**，并内置科学的学习管理功能（进度跟踪、间隔复习、随机测验、错题本、搜索、速查表）。
 
@@ -14,6 +15,12 @@
 > 端口被占用时会自动顺延（8765 → 8766 …），以启动窗口打印的地址为准。
 > 关闭方式：在启动窗口按 `Ctrl+C`，或直接关闭窗口。
 > 需要 Python 3.8+ 且已加入 PATH；未安装请先安装并勾选 *Add Python to PATH*。
+
+## 🌐 在线预览 (GitHub Pages)
+
+完整的学习内容也可在浏览器直接访问：**https://mariner-128.github.io/AlgoDesignLab/**
+
+> 网页版为「阅读模式」：全部 13 章内容、练习题、测验、进度、复习功能可用；代码「运行」与实验台执行需在本地启动平台（下载仓库后双击「启动学习平台.exe」），网页版会自动禁用运行按钮并给出提示。
 
 ---
 
