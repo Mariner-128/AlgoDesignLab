@@ -1,5 +1,7 @@
 # 🧠 算法设计与分析学习平台 (AlgoLab)
 
+[![GitHub](https://img.shields.io/badge/GitHub-AlgoDesignLab-181717?logo=github)](https://github.com/Mariner-128/AlgoDesignLab)
+
 一个**完全离线、开箱即用**的算法学习应用：覆盖《算法设计与分析》全部知识点（**13 章 71 个小节**），每个知识点均包含**理论精讲、可运行的 C/Python 案例代码（共 142 段，全部实测通过）、中等偏上难度练习题（240+ 道，含提示与详解）**，并内置科学的学习管理功能（进度跟踪、间隔复习、随机测验、错题本、搜索、速查表）。
 
 ---
