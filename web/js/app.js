@@ -390,20 +390,32 @@ const App = (() => {
     U.toast(next === "dark" ? "已切换深色模式 🌙" : "已切换浅色模式 ☀️");
   }
 
+  /* 运行环境: online(本地服务器可用, 可执行代码) / readonly(GitHub Pages 预览) */
+  let onlineMode = false;
+  function setOnline(v) { onlineMode = !!v; }
+  function isOnline() { return onlineMode; }
+
   async function boot() {
     const theme = Store.getTheme();
     document.documentElement.setAttribute("data-theme", theme);
     bind();
     await Data.load();
     route();
-    /* 健康检查: 提示编译器状态 */
+    /* 健康检查: 探测运行环境 + 编译器状态 */
     Runner.health().then(h => {
-      if (!h || !h.ok) { U.toast("无法连接本地服务器, 请通过启动脚本运行", "err"); return; }
+      if (!h || !h.ok) {
+        setOnline(false);
+        route(true);
+        U.toast("当前为网页预览模式: 学习内容完整, 代码运行需在本地启动平台", "warn");
+        return;
+      }
+      setOnline(true);
+      route(true);
       if (h.compilers && h.compilers.length) return;
       setTimeout(() => U.toast("⚠ 未检测到 C 编译器: C 案例暂不可运行, 详见 README"), 2500);
     }).catch(() => {});
   }
 
-  return { route, boot };
+  return { route, boot, setOnline, isOnline };
 })();
 document.addEventListener("DOMContentLoaded", () => App.boot());

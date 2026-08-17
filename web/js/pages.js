@@ -53,6 +53,9 @@ const Pages = (() => {
       '<a class="btn" href="#/quiz">📝 随机测验</a>' +
       '<a class="btn" href="#/path">🗺 学习路径</a>' +
       '<a class="btn" href="#/cheat">📋 速查表</a></div></div>';
+    if (!App.isOnline()) {
+      html += '<div class="card" style="border-left:4px solid var(--warn)"><b>📖 网页预览模式</b><span class="muted small"> — 全部学习内容与功能可用(进度/测验/复习等保存在本浏览器); 代码「运行」需在本地启动平台: 下载仓库后双击「启动学习平台.exe」。</span></div>';
+    }
     html += '<div class="grid c4">' +
       '<div class="stat-card"><div class="v">' + chs.length + " 章 / " + total + "</div><div class=\"k\">知识小节总数</div></div>" +
       '<div class="stat-card"><div class="v">' + cnt.s2 + " / " + total + "</div><div class=\"k\">已掌握</div>" +
@@ -188,16 +191,23 @@ const Pages = (() => {
     const lang = cd.lang;
     const pid = secId + "-" + i;
     const needIn = Runner.needsInput(cd.code);
+    const online = App.isOnline();
+    const runBtn = online
+      ? '<button class="btn" data-act="run" data-out="out-' + pid + '" data-code="code-' + pid + '" data-in="in-' + pid + '" data-meta="meta-' + pid + '" data-lang="' + lang + '">▶ 运行</button>'
+      : '<button class="btn" disabled title="网页预览模式无法执行代码, 请本地启动平台">▶ 运行(需本地)</button>';
+    const tip = online
+      ? '<span class="small" style="color:#7d8ba1">运行超时 15 秒 · 修改代码后点「运行」</span>'
+      : '<span class="small" style="color:#fbbf24">📖 网页预览模式: 代码仅可查看/复制, 运行功能需在本地启动平台(双击「启动学习平台.exe」)</span>';
     return '<div class="code-card"><div class="code-head">' +
       '<span class="lang-badge ' + (lang === "c" ? "c" : "py") + '">' + (lang === "c" ? "C" : "PYTHON") + "</span>" +
       "<span class=\"desc\">" + U.escapeHtml(cd.name || (lang === "c" ? "C 案例" : "Python 案例")) + (cd.desc ? " — " + U.escapeHtml(cd.desc) : "") + "</span>" +
-      '<button class="btn" data-act="run" data-out="out-' + pid + '" data-code="code-' + pid + '" data-in="in-' + pid + '" data-meta="meta-' + pid + '" data-lang="' + lang + '">▶ 运行</button>' +
+      runBtn +
       '<button class="btn" data-act="reset" data-code="code-' + pid + '" data-orig="' + pid + '">↺ 重置</button>' +
       '<button class="btn" data-act="to-lab" data-lang="' + lang + '" data-code="code-' + pid + '" data-title="' + U.escapeHtml(secId + " " + (cd.name || "")) + '">🔧 在实验台打开</button></div>' +
       '<textarea class="code-edit" id="code-' + pid + '" spellcheck="false" data-orig="' + pid + '">' + escArea(cd.code) + "</textarea>" +
       '<div class="run-row">' +
       (needIn ? '<textarea class="inp" id="in-' + pid + '" rows="2" placeholder="标准输入(如: 5 3 8 1 9)…"></textarea>' : '<span class="muted small" style="color:#7d8ba1">无需输入</span>') +
-      '<span class="small" style="color:#7d8ba1">运行超时 15 秒 · 修改代码后点「运行」</span></div>' +
+      tip + "</div>" +
       '<pre class="out-box hidden" id="out-' + pid + '"></pre>' +
       '<div class="out-meta hidden" id="meta-' + pid + '"></div></div>';
   }
@@ -331,6 +341,13 @@ const Pages = (() => {
     chs.forEach(c => (c.sections || []).forEach(s => {
       secOpts.push('<option value="' + s.id + '">' + U.escapeHtml(s.id + " " + s.title) + "</option>");
     }));
+    const online = App.isOnline();
+    const runBtn = online
+      ? '<button class="btn primary" data-act="lab-run">▶ 运行</button>'
+      : '<button class="btn primary" disabled title="网页预览模式无法执行代码, 请本地启动平台">▶ 运行(需本地)</button>';
+    const tip = online
+      ? ""
+      : '<p class="muted small" style="color:#fbbf24;margin-top:8px">📖 网页预览模式: 编辑与载入功能可用, 代码运行需在本地启动平台(双击「启动学习平台.exe」)。</p>';
     return '<div class="card"><h2 style="margin:0 0 4px">🔧 算法实验台</h2>' +
       "<p class=\"muted small\">自由编写并运行 C / Python 代码; 也可从任意知识点一键载入其案例代码进行修改实验。</p></div>" +
       '<div class="card"><div class="load-row">' +
@@ -343,9 +360,9 @@ const Pages = (() => {
       '<button class="btn ghost" data-act="lab-clear">清空</button></div>' +
       '<textarea class="lab-editor" id="lab-editor" spellcheck="false">' + escArea(saved.code || defaultLabCode(saved.lang)) + "</textarea>" +
       '<div class="run-row"><textarea class="inp" id="lab-in" rows="2" placeholder="标准输入(可选)…"></textarea>' +
-      '<button class="btn primary" data-act="lab-run">▶ 运行</button></div>' +
+      runBtn + "</div>" +
       '<pre class="out-box hidden" id="lab-out"></pre>' +
-      '<div class="out-meta hidden" id="lab-meta"></div></div>';
+      '<div class="out-meta hidden" id="lab-meta"></div>' + tip + "</div>";
   }
   function defaultLabCode(lang) {
     return lang === "c"

@@ -37,6 +37,7 @@ global.fetch = async url => {
     return { ok: false, status: 404, json: async () => null };
   }
 };
+global.App = { isOnline: () => true, route: () => {}, setOnline: () => {}, boot: () => {} };
 
 /* ---------- 加载模块 ---------- */
 function load(name, varName) {
