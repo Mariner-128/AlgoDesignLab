@@ -16,7 +16,7 @@
 > 关闭方式：在启动窗口按 `Ctrl+C`，或直接关闭窗口。
 > 需要 Python 3.8+ 且已加入 PATH；未安装请先安装并勾选 *Add Python to PATH*。
 
-## 🌐 在线预览 (GitHub Pages)
+## 🌐 在线预览 (GitHub Pages)（推荐）
 
 完整的学习内容也可在浏览器直接访问：**https://mariner-128.github.io/AlgoDesignLab/**
 
