@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>算法设计与分析学习平台</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="app">
+  <aside id="sidebar">
+    <div class="brand">
+      <span class="brand-logo">🧠</span>
+      <div class="brand-text"><b>算法设计与分析</b><small>学习平台 · AlgoLab</small></div>
+    </div>
+    <nav id="nav-tree" aria-label="章节导航"></nav>
+    <div class="side-foot">
+      <button id="btn-theme" class="btn block" title="切换明暗主题">🌓 切换主题</button>
+      <div class="overall">
+        <div class="overall-label"><span>总学习进度</span><b id="overall-pct">0%</b></div>
+        <div class="bar"><i id="overall-bar"></i></div>
+      </div>
+    </div>
+  </aside>
+  <div id="main-wrap">
+    <header id="topbar">
+      <button id="btn-menu" class="btn" title="展开/收起目录">☰</button>
+      <div class="crumb" id="crumb"></div>
+      <div class="top-right">
+        <div class="searchbox">
+          <input id="search-input" type="search" placeholder="搜索知识点 / 算法…(按 / 聚焦)">
+          <button id="search-btn" class="btn">搜索</button>
+        </div>
+        <a class="btn icon-btn" href="#/" title="首页">🏠</a>
+      </div>
+    </header>
+    <main id="main"></main>
+    <footer id="foot">算法设计与分析学习平台 · 本地离线应用 · 数据保存在浏览器本地</footer>
+  </div>
+</div>
+<div id="toast" class="toast"></div>
+<div id="modal-mask" class="modal-mask hidden">
+  <div id="modal" class="modal"></div>
+</div>
+<script src="js/md.js"></script>
+<script src="js/hl.js"></script>
+<script src="js/store.js"></script>
+<script src="js/data.js"></script>
+<script src="js/runner.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/cheatdata.js"></script>
+<script src="js/pages.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

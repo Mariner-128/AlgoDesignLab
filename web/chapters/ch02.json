@@ -1,0 +1,416 @@
+{
+ "id": "ch02",
+ "order": 2,
+ "title": "分治策略",
+ "subtitle": "分解-解决-合并: 二分、归并、快排、Karatsuba 与最近点对。",
+ "icon": "🔀",
+ "sections": [
+  {
+   "id": "2-1",
+   "title": "分治思想与主定理深入",
+   "keywords": [
+    "分治",
+    "分解",
+    "合并",
+    "主定理",
+    "递归树",
+    "子问题独立",
+    "均衡分裂",
+    "动态规划"
+   ],
+   "desc": "分治三步与适用条件, 主定理三情形与直觉, 扩展主定理, 以及与动态规划的分野。",
+   "theory": "**什么是分治** 分治(Divide and Conquer)是把规模为 n 的问题分解为若干规模更小、结构相同的子问题, 递归求解后再合并的算法设计范式。核心是三步:\n\n1. **分解(Divide)**: 把原问题划分成 k 个规模更小、**相互独立**的子问题;\n2. **解决(Conquer)**: 递归求解各子问题; 当子问题足够小(递归基)时直接求解;\n3. **合并(Combine)**: 把子问题的解合并成原问题的解。\n\n## 适用条件\n\n分治高效的前提有二: ① 子问题**相互独立**——若子问题重叠, 递归会重复计算导致指数退化(朴素递归求斐波那契即反例), 此时应改用动态规划; ② 分解后子问题**规模均衡**——T(n) = T(n/3) + T(2n/3) + n 与 T(n) = 2T(n/2) + n 同为 Θ(n log n), 而严重失衡的 T(n) = T(n−1) + Θ(n) 退化到 Θ(n²), 分治优势尽失。\n\n## 主定理三情形\n\n对 T(n) = aT(n/b) + f(n), a ≥ 1, b 大于 1, 记 c* = log~b~ a:\n\n- **情形 1(叶子主导)**: f(n) = O(n^(c*−ε)) ⇒ T(n) = Θ(n^c*);\n- **情形 2(均衡)**: f(n) = Θ(n^c*·log^k n) ⇒ T(n) = Θ(n^c*·log^(k+1) n);\n- **情形 3(根主导)**: f(n) = Ω(n^(c*+ε)) 且满足正则条件 a·f(n/b) ≤ c·f(n)(c 小于 1) ⇒ T(n) = Θ(f(n))。\n\n**直觉**: 递归树共 log~b~ n 层, 叶子总数 n^c*; 比较「叶子总代价 n^c*」与「每层合并代价 f(n) 之和」——谁大谁主导, 相当时多乘一个 log 因子。主定理本质是「比大小」, 三种情形的划分正是这个比较的三种结果。例: T(n) = 4T(n/2) + n 中 c* = 2, 每层合并代价按 2 倍递增, 叶子层最重 ⇒ Θ(n²); T(n) = 2T(n/2) + n² 中 c* = 1, 合并代价按 4 倍递增, 根层最重 ⇒ Θ(n²); 而 T(n) = 2T(n/2) + n 每层代价相同 ⇒ Θ(n log n)。这三种「层代价走势」(递减/持平/递增)与主定理三情形一一对应。\n\n## 经典分治问题谱系\n\n分治是应用最广的算法范式之一: 二分查找与二分答案(2-2)、归并排序(2-3)、快速排序(2-4)、最大子数组(2-5)、Karatsuba 大整数乘法(2-6)、平面最近点对(2-7), 以及矩阵乘法的 Strassen 算法(七次乘法, T(n) = 7T(n/2) + Θ(n²) ⇒ Θ(n^2.807^))。它们的共同结构都是「分解-解决-合并」, 差异只在三步的具体代价。\n\n## 扩展主定理\n\n对形如 T(n) = Σ a~i~·T(b~i~n) + f(n)(各子问题分裂比例不同的分治), 若存在 p 使 Σ a~i~·b~i~^p^ = 1, 则 T(n) = Θ(n^p·(1 + ∫ f(u)/u^(p+1) du))——Akra–Bazzi 公式统一了不同比例混合的分治, 是主定理的推广, 也是分析 T(n) = T(n/3) + T(2n/3) + n 这类「非等比分治」的严格工具。\n\n## 与动态规划的区别\n\n分治的子问题**互不相交**, 各自独立求解后合并; 动态规划的子问题**重叠**, 用表格记忆子问题解避免重复计算。分治自上而下递归, DP 通常自底向上迭代。判断标准: 子问题是否重复出现——斐波那契用分治递归 T(n) = T(n−1) + T(n−2) + Θ(1) = Θ(2ⁿ), 用 DP 自底向上只需 Θ(n); 0/1 背包、最长公共子序列同理。记不住这个区分, 是「分治写成指数」最常见的根源。",
+   "keyPoints": [
+    "分治三步: 分解、解决、合并; 子问题独立且规模均衡是高效的前提",
+    "主定理比较 f(n) 与 n^(log_b a): 叶子主导/均衡/根主导三种情形, 正则条件不可省",
+    "子问题重叠时分治退化为指数, 应改用动态规划",
+    "均衡分裂不改变渐近阶: T(n/3)+T(2n/3)+n 与 2T(n/2)+n 同为 Θ(n log n)",
+    "扩展主定理(Akra–Bazzi)处理不同分裂比例混合的分治"
+   ],
+   "codes": [
+    {
+     "lang": "c",
+     "name": "快速幂(分治)",
+     "desc": "输入 a n m, 输出 a^n mod m。示例: 输入 2 10 1000 → 输出 24",
+     "code": "#include <stdio.h>\n\n/* 快速幂: 分治计算 a^n mod m\n * 分解: 先求 a^(n/2); 解决: 递归; 合并: 平方后按奇偶补乘\n * T(n) = T(n/2) + O(1) => Θ(log n)(主定理情形2, c*=0, f=Θ(n^0)) */\nlong long pow_mod(long long a, long long n, long long m) {\n    if (n == 0) return 1 % m;              /* 递归基: a^0 = 1 */\n    long long half = pow_mod(a, n / 2, m); /* 解决: 子问题 a^(n/2) */\n    long long r = half * half % m;         /* 合并: 平方 */\n    if (n % 2 == 1) r = r * a % m;         /* n 为奇数再乘一个 a */\n    return r;\n}\n\nint main(void) {\n    long long a, n, m;\n    printf(\"输入 a n m (计算 a^n mod m): \");\n    if (scanf(\"%lld %lld %lld\", &a, &n, &m) != 3 || m <= 1) {\n        printf(\"输入无效! 要求 m >= 2\\n\");\n        return 1;\n    }\n    printf(\"%lld^%lld mod %lld = %lld\\n\", a, n, m, pow_mod(a, n, m));\n    return 0;\n}\n"
+    },
+    {
+     "lang": "python",
+     "name": "快速幂(分治)",
+     "desc": "输入 a n m, 输出 a^n mod m。示例: 输入 2 10 1000 → 输出 24",
+     "code": "# 快速幂: 分治计算 a^n mod m, T(n) = T(n/2) + O(1) => Θ(log n)\nimport sys\n\ndef pow_mod(a, n, m):\n    if n == 0:\n        return 1 % m                 # 递归基: a^0 = 1\n    half = pow_mod(a, n // 2, m)     # 解决: 子问题 a^(n/2)\n    r = half * half % m              # 合并: 平方\n    if n % 2 == 1:\n        r = r * a % m                # n 为奇数再乘一个 a\n    return r\n\ndata = list(map(int, sys.stdin.read().split()))\na, n, m = data[0], data[1], data[2]\nprint(f\"{a}^{n} mod {m} = {pow_mod(a, n, m)}\")\n"
+    }
+   ],
+   "exercises": [
+    {
+     "diff": 3,
+     "q": "用主定理求下列递归式的渐近紧界, 并说明各属哪种情形; 若主定理不适用请说明原因:\n(a) T(n) = 9T(n/3) + n\n(b) T(n) = T(2n/3) + 1\n(c) T(n) = 2T(n/2) + n²",
+     "hint": "先算 c* = log~b~a 再与 f(n) 比较; (c) 需验证正则条件 a·f(n/b) ≤ c·f(n)。",
+     "ans": "**思路**: 主定理三情形由 f(n) 与 n^c* 的大小关系决定。\n\n(a) a = 9, b = 3, c* = log₃9 = 2, f(n) = n = O(n^(2−1)), **情形 1** ⇒ T(n) = Θ(n²)。\n(b) a = 1, b = 3/2, c* = log~3/2~1 = 0, f(n) = 1 = Θ(n⁰·log⁰n), **情形 2** ⇒ T(n) = Θ(log n)(递归树每层代价 1, 共 log~3/2~ n 层)。\n(c) a = 2, b = 2, c* = 1, f(n) = n² = Ω(n^(1+1)); 正则条件: a·f(n/b) = 2·(n/2)² = n²/2 ≤ c·n², 取 c = 1/2 小于 1 ✓, **情形 3** ⇒ T(n) = Θ(n²)。\n\n**复杂度**: 三者分别为 Θ(n²)、Θ(log n)、Θ(n²)。要点: 情形 1 是叶子主导(递归展开后叶子层最重), 情形 3 是根主导(每层合并代价按几何级数增长), 情形 2 是均衡。"
+    },
+    {
+     "diff": 4,
+     "q": "假币问题: n 枚外观相同的硬币中恰有一枚较轻(其余等重), 天平一次可比较任意两组硬币的重量。设计最优称量策略, 求最坏情况下的最少称量次数, 并证明下界。",
+     "hint": "每次把硬币尽量等分成三组称其中两组; 下界用信息论: 每次称量至多 3 种结果。",
+     "ans": "**思路**: 三分组 + 信息论下界, 是最典型的分治思想应用。\n\n**算法**: 每次把硬币尽量等分成三组 A、B、C(每组 ≤ ⌈n/3⌉ 枚), 称 A 与 B: 若平衡, 假币在 C; 否则假币在较轻的一组。递推 T(n) ≤ T(⌈n/3⌉) + 1, T(1) = 0, 解为 ⌈log₃n⌉。\n\n**下界证明**: 每次称量只有 平衡/左轻/右轻 三种结果, t 次称量最多区分 3^t 种情形; 假币有 n 种可能位置, 必须 3^t ≥ n, 故 t ≥ ⌈log₃n⌉。上述策略恰好达到该下界, 最优。\n\n**验证**: n = 27 时 3 次即可(3³ = 27); n = 28 时需 4 次。注意三分必须尽量均等, 否则最坏规模超 ⌈n/3⌉。"
+    },
+    {
+     "diff": 5,
+     "q": "循环赛日程表: 有 2^k 支队伍(编号 1..2^k), 要求安排 2^k − 1 天的比赛, 每天每队恰好比赛 1 场、共 2^(k−1) 场, 且任意两队恰好交手一次。设计分治算法构造赛程表(用 n×n 表 A[i][j] 记录第 i 队第 j 天的对手), 给出递归构造并证明正确性。",
+     "hint": "把队伍分成前一半与后一半; 左上半块递归构造, 其余三个子块如何由左上拷贝得到?",
+     "ans": "**思路**: 用 2^(k−1) 队问题的解拼出 2^k 队问题的解——经典分治构造。\n\n**构造**: 令 n = 2^k。把队伍按编号分成左半(1..n/2)与右半(n/2+1..n)。① 左上半块(前 n/2 队的内部赛程)递归构造; ② 右上半块 = 左上半块对应位置 + n/2(第 d 天, 左半队 i 与右半队 i+n/2 交手); ③ 左下半块 = 右上半块(右半队 vs 左半队, 对手关系对称); ④ 右下半块 = 左上半块(右半内部赛程)。\n\n**正确性(对 k 归纳)**: 基础 k = 1 平凡。归纳假设左上半块满足: 每天每队 1 场、任意两队恰好交手 1 次。于是右上半块每列恰是右半队的一个排列(拷贝性质), 保证每天每队 1 场; 对任意左半队 i 与右半队 j, 存在唯一一天 d 使 i 的对手是 j−n/2(左半内部两两交手一次), 那天 i 的对手恰为 j——跨半配对唯一; 左右两个下半块对称成立。故整表满足全部要求。\n\n**复杂度**: 每层拷贝 O(n²) 个格子, T(n) = T(n/2) + Θ(n²) ⇒ Θ(n²), 恰为输出规模, 最优。"
+    }
+   ]
+  },
+  {
+   "id": "2-2",
+   "title": "二分查找与二分答案",
+   "keywords": [
+    "二分查找",
+    "边界变体",
+    "lower_bound",
+    "二分答案",
+    "单调性",
+    "区间不变式",
+    "死循环"
+   ],
+   "desc": "标准二分与边界变体(lower_bound/upper_bound), 二分答案的单调性判定思想, 区间开闭与死循环等易错点。",
+   "theory": "**二分查找** 在有序数组 A 中查找 x: 每次与中点比较, 依据有序性排除一半区间。区间不变式: 若 x 在数组中, 则 x ∈ A[lo..hi]; 每轮区间长度减半, 最坏 ⌊log₂n⌋ + 1 轮, **Θ(log n)** 时间、O(1) 空间。\n\n## 边界变体\n\n二分不只用于「找相等元素」, 更常用的是边界:\n\n- **第一个 ≥ x**(lower_bound): 最小下标 i 使 A[i] ≥ x;\n- **第一个大于 x**(upper_bound): 最小下标 i 使 A[i] 大于 x;\n- **最后一个 ≤ x**: upper_bound 的结果减 1;\n- **x 的出现次数**: upper_bound − lower_bound。\n\n统一模板(半开区间 [lo, hi)):\n\n```text\nlo = 0, hi = n\nwhile lo 小于 hi:\n    mid = lo + (hi − lo) / 2\n    if A[mid] 小于 x: lo = mid + 1   # 排除 [lo, mid]\n    else: hi = mid                   # 收缩右界, 保持候选\n返回 lo\n```\n\nlower_bound 与 upper_bound 只差一个比较符(小于 vs 小于等于)。\n\n## 二分答案\n\n当问题的答案在值域 [L, R] 内**单调可判定**——存在分界点, 答案大于等于某值时「可行」, 否则不可行——就可以对答案二分: 每次取 mid, 用 O(1) 或 O(n) 的**判定函数** check(mid) 检验可行性, 把「求最优值」转化为「求可行域边界」。典型: 切绳子求最大等长段长、最小化最大值问题。以切绳子为例(n 段长度已知, 要切 k 段等长):\n\n```text\ncheck(L): 返回 sum( len[i] // L ) ≥ k   # L 越大越难满足\nlo = 0, hi = max(len)                     # 答案必在 [0, max]\nwhile lo 小于 hi:                         # 找最大的可行 L\n    mid = (lo + hi + 1) / 2               # 上取整, 防死循环\n    if check(mid): lo = mid\n    else: hi = mid - 1\n```\n\n总复杂度 O(log(值域) × 判定代价), 值域 10^9 时仅需约 30 次判定; 实数版本固定迭代 60~100 次即可。\n\n## 边界变体的应用\n\nlower_bound/upper_bound 是标准库(libstdc++、Python bisect)的核心原语, 用途包括: 统计有序数组中 x 的出现次数(upper − lower)、找插入位置保持有序、求解「第一个满足某条件的位置」等。掌握统一的半开区间模板后, 任何「单调性质分界点」问题都可套用。\n\n## 易错点\n\n① **区间开闭混用**: 闭区间 [lo, hi] 配 lo ≤ hi 与 mid = (lo+hi)/2, 半开区间 [lo, hi) 配 lo 小于 hi, 混用会死循环或漏查元素; ② **死循环**: 用 lo = mid 时, lo+1 == hi 永不收敛, 必须 lo = mid+1(或 mid 上取整); ③ **溢出**: mid = lo + (hi−lo)/2 避免 lo+hi 溢出; ④ **边界**: 全部元素小于 x 时 lower_bound 返回 n, 访问 A[n] 越界; ⑤ 二分答案的判定函数必须单调, 否则二分无意义; ⑥ 整数二分「找最大可行」与「找最小可行」的 mid 取整方向相反, 混用必死循环。",
+   "keyPoints": [
+    "二分查找依赖有序性与区间不变式, 每轮排除一半 → Θ(log n)",
+    "边界变体用半开区间模板: lower_bound 与 upper_bound 只差一个比较符",
+    "死循环与溢出是二分两大陷阱: lo=mid+1、mid=lo+(hi-lo)/2",
+    "二分答案: 答案单调可判定时对答案二分, 总代价 O(log 值域 × 判定代价)",
+    "判定函数的单调性是二分答案成立的前提; 区间开闭混用必出错"
+   ],
+   "codes": [
+    {
+     "lang": "c",
+     "name": "二分查找边界变体",
+     "desc": "输入 n、x 与 n 个有序整数, 输出 lower_bound/upper_bound/最后一个≤x/出现次数。示例: 输入 6 4 / 1 2 2 4 4 5 → 输出 3 / 5 / 4 / 2",
+     "code": "#include <stdio.h>\n\n/* 二分查找边界变体: 全部用半开区间 [lo, hi) 模板, 输入需有序 */\nint lower_bound(int A[], int n, int x) {   /* 第一个 >= x 的下标 */\n    int lo = 0, hi = n;\n    while (lo < hi) {\n        int mid = lo + (hi - lo) / 2;      /* 防溢出: 不用 (lo+hi)/2 */\n        if (A[mid] < x) lo = mid + 1;      /* 排除 [lo, mid] */\n        else hi = mid;                     /* 收缩右界, 保持候选 */\n    }\n    return lo;\n}\n\nint upper_bound(int A[], int n, int x) {   /* 第一个 > x 的下标 */\n    int lo = 0, hi = n;\n    while (lo < hi) {\n        int mid = lo + (hi - lo) / 2;\n        if (A[mid] <= x) lo = mid + 1;     /* 只差这一个比较符 */\n        else hi = mid;\n    }\n    return lo;\n}\n\nint main(void) {\n    int n, x, A[100];\n    printf(\"输入 n 与待查值 x: \");\n    if (scanf(\"%d %d\", &n, &x) != 2 || n < 0 || n > 100) { printf(\"输入无效!\\n\"); return 1; }\n    printf(\"输入 %d 个有序整数: \", n);\n    for (int i = 0; i < n; i++) scanf(\"%d\", &A[i]);\n    int lb = lower_bound(A, n, x);\n    int ub = upper_bound(A, n, x);\n    printf(\"第一个 >= %d 的下标: %d\\n\", x, lb);\n    printf(\"第一个 >  %d 的下标: %d\\n\", x, ub);\n    printf(\"最后一个 <= %d 的下标: %d\\n\", x, ub - 1);\n    printf(\"%d 的出现次数: %d\\n\", x, ub - lb);\n    return 0;\n}\n"
+    },
+    {
+     "lang": "python",
+     "name": "二分查找边界变体",
+     "desc": "输入 n、x 与 n 个有序整数, 输出 lower_bound/upper_bound/最后一个≤x/出现次数。示例: 输入 6 4 / 1 2 2 4 4 5 → 输出 3 / 5 / 4 / 2",
+     "code": "# 二分查找边界变体: lower_bound / upper_bound, 半开区间 [lo, hi) 模板\nimport sys\n\ndef lower_bound(a, x):\n    lo, hi = 0, len(a)\n    while lo < hi:\n        mid = lo + (hi - lo) // 2\n        if a[mid] < x:\n            lo = mid + 1\n        else:\n            hi = mid\n    return lo\n\ndef upper_bound(a, x):\n    lo, hi = 0, len(a)\n    while lo < hi:\n        mid = lo + (hi - lo) // 2\n        if a[mid] <= x:\n            lo = mid + 1\n        else:\n            hi = mid\n    return lo\n\ndata = list(map(int, sys.stdin.read().split()))\nn, x = data[0], data[1]\na = data[2:2 + n]\nlb = lower_bound(a, x)\nub = upper_bound(a, x)\nprint(f\"第一个 >= {x} 的下标: {lb}\")\nprint(f\"第一个 >  {x} 的下标: {ub}\")\nprint(f\"最后一个 <= {x} 的下标: {ub - 1}\")\nprint(f\"{x} 的出现次数: {ub - lb}\")\n"
+    }
+   ],
+   "exercises": [
+    {
+     "diff": 3,
+     "q": "旋转有序数组最小值: 一个严格递增数组在某处旋转(如 4 5 6 7 1 2 3), 设计 O(log n) 算法求最小元素, 并证明正确性。",
+     "hint": "比较 A[mid] 与 A[hi]; 旋转点右侧存在「下降」; 每轮区间减半。",
+     "ans": "**思路**: 利用旋转数组的二分性质——总存在一个「断点」, 断点右侧是最小元素。\n\n**算法**: lo = 0, hi = n−1; while lo 小于 hi: mid = (lo+hi)/2; 若 A[mid] 大于 A[hi], 说明 [mid, hi] 内存在下降(旋转断点在 mid 右侧), 最小元素必在 (mid, hi] 中, 令 lo = mid+1; 否则 [mid..hi] 递增, 最小元素在 [lo, mid], 令 hi = mid。返回 A[lo]。\n\n**正确性**: 原数组至多一个断点(旋转处), A[mid] 大于 A[hi] 时断点必在 (mid, hi] 内; 否则 [mid..hi] 严格递增, 断点不在其中, 最小值在 [lo, mid]。不变式「最小值 ∈ [lo, hi]」保持, 区间每次至少减半, 终止时 lo == hi 即最小值下标。\n\n**复杂度**: O(log n) 时间, O(1) 空间。"
+    },
+    {
+     "diff": 4,
+     "q": "切绳子(实数二分答案): n 段绳子, 长度均为整数(n ≤ 10^5, 长度 ≤ 10^9), 要求切出 k 段长度相等的小段(允许剩余), 求最大可能的长度 L, 输出保留两位小数。给出算法、判定函数与精度处理。",
+     "hint": "判定 check(L) = Σ⌊len~i~/L⌋ ≥ k 关于 L 单调递减; 实数二分固定迭代次数而非 while 循环。",
+     "ans": "**思路**: 答案 L 越大越难满足, 可行集是 [0, L*] 前缀区间, 可二分。\n\n**算法**: lo = 0, hi = max(len~i~); 迭代 60~100 次: mid = (lo+hi)/2; 若 Σ⌊len~i~/mid⌋ ≥ k 则 lo = mid, 否则 hi = mid; 最终输出 lo 保留两位小数。\n\n**正确性**: 单调性——L 增大时每段可切出的段数不增, 总和单调不增, 故可行集为前缀区间, 二分收敛到最大可行 L。\n\n**精度处理**: 实数二分**不要**用 while (hi−lo 大于 eps), 浮点下可能死循环且不可控; 固定迭代 60 次已远超 double 精度(2^60 ≈ 10^18), 稳定且高效。\n\n**复杂度**: O(60·n) ≈ O(n)。易错点: 整数除法⌊⌋取整要显式; k 可能大于总长度除以某段的情形由判定函数自然处理。"
+    },
+    {
+     "diff": 4,
+     "q": "山峰数组: 数组先严格递增后严格递减(无重复元素), 设计 O(log n) 算法找峰值元素的下标。",
+     "hint": "比较 A[mid] 与 A[mid+1] 的走势: 上升则峰值在右, 下降则峰值在左。",
+     "ans": "**思路**: 峰值是唯一的「拐点」, 用相邻元素的单调走势做二分决策。\n\n**算法**: lo = 0, hi = n−1; while lo 小于 hi: mid = (lo+hi)/2; 若 A[mid] 小于 A[mid+1], 则 mid 处于上升段, 峰值在 (mid, hi] 内, lo = mid+1; 否则 mid 处于下降段(或已是峰值), 峰值在 [lo, mid], hi = mid。返回 lo。\n\n**正确性**: 数组先增后减, 若 A[mid] 小于 A[mid+1] 则从 mid 向右仍呈上升趋势, 而数组最终必下降, 故峰值在右侧; 否则在 mid 处已开始下降(或到达峰值), 峰值不晚于 mid。不变式「峰值 ∈ [lo, hi]」保持, 区间减半, 终止时 lo == hi 即峰值。\n\n**复杂度**: O(log n)。推广: 该思想适用于「任意相邻不同且首尾下降趋势」的数组找局部峰值。"
+    },
+    {
+     "diff": 5,
+     "q": "两个有序数组 A(长 m)与 B(长 n), 求合并后数组的中位数, 要求时间复杂度 O(log(min(m, n)))。",
+     "hint": "对较短的数组二分「切割位置」; 切割把两数组分成左右两半, 满足左半最大 ≤ 右半最小; 边界用负无穷/正无穷处理。",
+     "ans": "**思路**: 中位数对应一个把合并数组一分为二的切割; 在两数组中各切一刀(共取左半 ⌈(m+n)/2⌉ 个元素), 满足交叉条件时切割唯一, 对较短数组二分切割位置即可。\n\n**算法**: 不妨 m ≤ n。对 A 二分切割 i(A 取前 i 个进左半), 对应 j = ⌈(m+n)/2⌉ − i(B 取前 j 个); 边界 i = 0 或 m、j = 0 或 n 用负无穷/正无穷代替越界值。若 A[i−1] 大于 B[j], 切割太靠右, hi = i−1; 若 B[j−1] 大于 A[i], 切割太靠左, lo = i+1; 否则找到。中位数 = (max(A[i−1], B[j−1]) + min(A[i], B[j]))/2(m+n 为偶)或 max(A[i−1], B[j−1])(为奇)。\n\n**正确性**: 合并数组的中位数把数组分成大小差 ≤ 1 的两半, 且两数组各自连续地分属两半; 交叉条件等价于切割合法; 对 i 二分至多 O(log m) 步, 每步 O(1)。\n\n**复杂度**: O(log min(m, n)) 时间, O(1) 空间。易错点: 边界下标与奇偶分类。"
+    }
+   ]
+  },
+  {
+   "id": "2-3",
+   "title": "归并排序与逆序对计数",
+   "keywords": [
+    "归并排序",
+    "合并",
+    "逆序对",
+    "稳定性",
+    "分治",
+    "双指针"
+   ],
+   "desc": "归并排序的分治过程与 Θ(n log n)/O(n) 复杂度, 以及合并时顺带统计逆序对的技巧与正确性。",
+   "theory": "**归并排序** 经典分治排序: **分解**——把 A[lo..hi] 从中点一分为二; **解决**——递归排序两半(长度不大于 1 时天然有序); **合并**——双指针把两个有序子数组合并: 每次取两指针所指的较小者(并列取左, 保证**稳定**), 一个数组耗尽后直接拷入剩余。递归式 T(n) = 2T(n/2) + Θ(n), 主定理情形 2 ⇒ **Θ(n log n)** 时间; 合并需临时数组, **O(n) 空间**(另加 O(log n) 递归栈)。\n\n## 合并时统计逆序对\n\n**逆序对**指 i 小于 j 且 A[i] 大于 A[j] 的数对。暴力两两比较 Θ(n²)。归并排序可在合并阶段顺带统计: 当右半当前元素 A[j] 小于左半当前元素 A[i] 时, 左半**剩余全部元素**都大于 A[j], 于是逆序对数增加「左半剩余个数」mid − i。例: 合并 [2, 4] 与 [1, 3, 5] 时, 1 被取出时左半剩余 [2, 4] 都与 1 构成逆序对, 计数 +2; 3 被取出时左半剩余 [4], 计数 +1; 总计 3, 恰为该数组的逆序对数。\n\n**正确性**: 每个逆序对 (p, q) 恰在它两端第一次分属不同子问题、且 q 被取出时统计一次——**不重不漏**。同一半内部的逆序对由递归调用统计; 跨半的逆序对中, q 被取出时 p 一定还在左半剩余里(取出的是剩余最小者), 故恰好计入一次。计数正确性由此保证, 总复杂度与归并相同, Θ(n log n)。\n\n## 稳定性与实现要点\n\n归并是**稳定**排序: 合并时两指针元素相等时取左半, 相等的元素保持原相对次序——这在按多个关键字排序(先按主键排, 再按次键排)时至关重要。实现要点: ① 计数用 long long: 最坏逆序对数为 n(n−1)/2, 会溢出 32 位整数; ② 合并用临时数组缓存再写回; ③ 逆序对数与冒泡排序的交换次数相等, 是数组「乱序程度」的自然度量; ④ 变体: 重要逆序对(A[i] 大于 2·A[j])、每个元素右侧更小元素个数等, 都可在归并的骨架上改造, 保持 O(n log n)。",
+   "keyPoints": [
+    "归并排序 = 分解(中点) + 解决(递归) + 合并(双指针), 稳定, Θ(n log n) 时间 O(n) 空间",
+    "合并时统计逆序对: A[i] > A[j] 时累加左半剩余个数 mid-i",
+    "每个逆序对恰在跨越分割线、右半元素被取出时统计一次 → 不重不漏",
+    "逆序对最坏 n(n-1)/2 个, 计数需 64 位整数",
+    "变体: 重要逆序对、右侧更小元素个数均可在归并骨架上 O(n log n) 求解"
+   ],
+   "codes": [
+    {
+     "lang": "c",
+     "name": "归并排序 + 逆序对计数",
+     "desc": "输入 n 与 n 个整数, 输出排序结果与逆序对数。示例: 输入 5 / 2 4 1 3 5 → 输出 1 2 3 4 5 / 3",
+     "code": "#include <stdio.h>\n\n/* 归并排序 + 逆序对计数: 合并时若左半元素大于右半元素, 累加左半剩余个数 */\nlong long inv_count = 0;\nint tmp[100000];\n\nvoid merge_sort(int A[], int lo, int hi) {\n    if (hi - lo <= 1) return;              /* 递归基: 长度 0/1 已有序 */\n    int mid = lo + (hi - lo) / 2;          /* 分解: 均分两半 */\n    merge_sort(A, lo, mid);                /* 解决: 左半 */\n    merge_sort(A, mid, hi);                /* 解决: 右半 */\n    int i = lo, j = mid, k = lo;           /* 合并: 双指针 */\n    while (i < mid && j < hi) {\n        if (A[i] <= A[j]) tmp[k++] = A[i++];\n        else {\n            tmp[k++] = A[j++];\n            inv_count += mid - i;          /* A[j] 与左半剩余全部构成逆序对 */\n        }\n    }\n    while (i < mid) tmp[k++] = A[i++];\n    while (j < hi) tmp[k++] = A[j++];\n    for (int t = lo; t < hi; t++) A[t] = tmp[t];\n}\n\nint main(void) {\n    int n, A[100000];\n    printf(\"输入元素个数 n (<= 100000): \");\n    if (scanf(\"%d\", &n) != 1 || n <= 0 || n > 100000) { printf(\"输入无效!\\n\"); return 1; }\n    printf(\"输入 %d 个整数: \", n);\n    for (int i = 0; i < n; i++) scanf(\"%d\", &A[i]);\n    merge_sort(A, 0, n);\n    printf(\"排序后: \");\n    for (int i = 0; i < n; i++) printf(\"%d \", A[i]);\n    printf(\"\\n逆序对数: %lld\\n\", inv_count);\n    return 0;\n}\n"
+    },
+    {
+     "lang": "python",
+     "name": "归并排序 + 逆序对计数",
+     "desc": "输入 n 与 n 个整数, 输出排序结果与逆序对数。示例: 输入 5 / 2 4 1 3 5 → 输出 1 2 3 4 5 / 3",
+     "code": "# 归并排序 + 逆序对计数: 合并时若左半首元素大于右半首元素, 累加左半剩余个数\nimport sys\n\ndef merge_sort_count(a):\n    n = len(a)\n    if n <= 1:\n        return a, 0\n    mid = n // 2\n    left, cl = merge_sort_count(a[:mid])    # 解决: 左半(含内部逆序对)\n    right, cr = merge_sort_count(a[mid:])   # 解决: 右半(含内部逆序对)\n    i = j = 0\n    merged = []\n    c = cl + cr\n    while i < len(left) and j < len(right):\n        if left[i] <= right[j]:\n            merged.append(left[i]); i += 1\n        else:\n            merged.append(right[j]); j += 1\n            c += len(left) - i              # right[j] 与左半剩余构成逆序对\n    merged += left[i:] + right[j:]\n    return merged, c\n\ndata = list(map(int, sys.stdin.read().split()))\nn = data[0]\na = data[1:1 + n]\nsorted_a, cnt = merge_sort_count(a)\nprint(\"排序后:\", *sorted_a)\nprint(\"逆序对数:\", cnt)\n"
+    }
+   ],
+   "exercises": [
+    {
+     "diff": 3,
+     "q": "证明归并排序在合并阶段统计逆序对的正确性: 说明为什么每个逆序对恰好被统计一次(不重不漏), 并分析总复杂度。",
+     "hint": "逆序对分三类: 全在左半、全在右半、跨越; 跨域的恰在「右半元素被取出」时统计。",
+     "ans": "**思路**: 归并的正确性随分治结构分解——同半内的对子由递归覆盖, 跨域对子由合并覆盖。\n\n**证明**: 合并时, 每当右半当前元素 A[j] 被取出(即它是两半剩余元素中的最小者), 左半剩余的所有元素都大于 A[j], 于是贡献 mid − i 个逆序对 (p, j), p 遍历左半剩余。对任意跨域逆序对 (p, q)(p 在左半, q 在右半, A[p] 大于 A[q]): 由于取出的是剩余最小者, q 被取出时 p 一定仍在左半剩余中(A[p] 大于 A[q]), 故该对恰在 q 取出时被统计一次; 若 A[p] ≤ A[q] 则 p 先被取出, 不构成逆序对, 不会被统计。同半内的逆序对由递归调用统计。故每个逆序对恰统计一次, 无重复无遗漏。\n\n**复杂度**: 计数不增加任何渐近开销——每层合并 O(n) 时间 O(n) 空间, 共 log n 层, 总 Θ(n log n)。"
+    },
+    {
+     "diff": 4,
+     "q": "重要逆序对: 统计 i 小于 j 且 A[i] 大于 2·A[j] 的数对个数, 要求 O(n log n)。给出归并解法与关键代码, 并指出与普通逆序对计数的差异。",
+     "hint": "计数时机不在元素取出时; 对每层两个有序半数组用双指针(或二分)统计满足 A[i] > 2·A[j] 的左半元素个数。",
+     "ans": "**思路**: 与普通逆序对不同, 重要逆序对要求严格大于 2 倍关系, 不能靠在合并取元素时顺带计数; 但两半各自有序, 可在合并前用双指针单调扫描统计跨域重要逆序对, 再正常合并。\n\n**关键代码**(对每层 [lo, hi), mid 为分界):\n\n```c\nlong long cnt = 0;\nint i = lo;\nfor (int j = mid; j < hi; j++) {\n    while (i < mid && A[i] <= 2LL * A[j]) i++;  /* 跳过不满足的 */\n    cnt += mid - i;   /* 左半剩余均满足 A[i] > 2*A[j] */\n}\n```\n\ni 随 j 单调不减, 每层统计 O(n); 再按普通归并排序合并, 总 Θ(n log n)。\n\n**差异**: 普通逆序对在「右半元素取出」时计数; 重要逆序对与取出时机无关, 必须显式扫描; 且 2·A[j] 可能溢出 32 位整数, 需转 long long。\n\n**正确性**: 左半有序, 满足 A[i] 大于 2·A[j] 的 i 是后缀区间 [i0, mid), while 找到其起点; 每个跨域重要逆序对 (i, j) 恰在 j 这一轮被计入。"
+    },
+    {
+     "diff": 5,
+     "q": "计算每个元素右侧严格小于它的元素个数(即对每个 i, 统计 j 大于 i 且 A[j] 小于 A[i] 的 j 的个数), 要求 O(n log n)。用「索引归并」实现并证明正确性。",
+     "hint": "排序下标而非值; 左半元素被取出时, 累加「已取出的右半元素个数」作为它的答案增量。",
+     "ans": "**思路**: 普通归并统计的是逆序对总数; 本题要求**每个位置**各自的计数。做法: 对下标数组做归并, 比较时引用原值; 维护 right_done = 已取出的右半元素个数, 每当左半元素被取出时, 它右侧已确定更小的元素恰为 right_done 个。\n\n**关键代码**:\n\n```python\ndef merge_count(idx, lo, hi, a, ans):\n    if hi - lo <= 1:\n        return\n    mid = (lo + hi) // 2\n    merge_count(idx, lo, mid, a, ans)\n    merge_count(idx, mid, hi, a, ans)\n    tmp, i, j, right_done = [], lo, mid, 0\n    while i < mid and j < hi:\n        if a[idx[i]] <= a[idx[j]]:\n            ans[idx[i]] += right_done   # 右侧已有 right_done 个更小者\n            tmp.append(idx[i]); i += 1\n        else:\n            right_done += 1             # 右半元素先出, 计入后续左半元素答案\n            tmp.append(idx[j]); j += 1\n    while i < mid:\n        ans[idx[i]] += right_done\n        tmp.append(idx[i]); i += 1\n    tmp += idx[j:hi]\n    idx[lo:hi] = tmp\n```\n\n**正确性**: 对任意 i 小于 j 且 A[i] 大于 A[j]: 若 j 在右半、i 在左半, 恰在归并中 j 先于 i 取出, 使 right_done 对 i 增 1; 若同半, 由递归保证。每个对子恰被计入一次, 归纳于区间长度即证。\n\n**复杂度**: 与归并相同, Θ(n log n) 时间, O(n) 额外空间。"
+    }
+   ]
+  },
+  {
+   "id": "2-4",
+   "title": "快速排序与随机化快速排序",
+   "keywords": [
+    "快速排序",
+    "Lomuto",
+    "Hoare",
+    "随机化",
+    "期望时间",
+    "划分",
+    "三路划分"
+   ],
+   "desc": "Lomuto 与 Hoare 划分, 最坏/平均分析, 随机化消除最坏输入, 期望 O(n log n) 证明思路。",
+   "theory": "**基本思想** 快速排序: 选基准 pivot, 用**划分(partition)**把数组排成「左部 ≤ pivot、右部 ≥ pivot」, 基准归位; 再递归排序左右两部分。递归基: 区间长度不超过 1。\n\n## Lomuto 划分\n\npivot = A[hi]; 指针 i 维护「小于 pivot 区」末尾, 扫描 j: 若 A[j] 小于 pivot 则 i 加 1 并交换 A[i] 与 A[j]; 扫描完交换 A[i+1] 与 A[hi] 并返回 i+1。实现简洁, 但**已有序输入**下每次划分极不平衡(每次只排除基准一个元素)。\n\n## Hoare 划分\n\n双指针 lo 与 hi 相向扫描: 左指针找大于等于 pivot 的元素, 右指针找小于等于 pivot 的元素, 交换后继续, 直到交错; 返回右指针位置。交换次数更少、常数更小, 但递归区间是 [lo, j] 与 [j+1, hi], 且基准不一定归位, 边界更易错。伪代码:\n\n```text\ni = lo - 1; j = hi + 1\nwhile true:\n    repeat i++ until A[i] ≥ pivot\n    repeat j-- until A[j] ≤ pivot\n    if i ≥ j: return j\n    swap(A[i], A[j])\n```\n\nLomuto 适合教学与正确性证明, Hoare 适合性能敏感的工程实现——两者都满足「左部 ≤ pivot、右部 ≥ pivot」, 区别只在细节。\n\n## 复杂度\n\n平衡划分 T(n) = 2T(n/2) + Θ(n) ⇒ **Θ(n log n)**; 最坏(每次划分成 1 与 n−1) T(n) = T(n−1) + Θ(n) ⇒ **Θ(n²)**——典型触发: 已有序(或逆序)输入配 Lomuto。平均情况 Θ(n log n)。\n\n## 随机化消除最坏情形\n\n划分前随机选基准(与 A[hi] 交换)。于是任何固定输入下, 算法的随机性使「坏划分」成为低概率事件: 期望时间 **Θ(n log n)**, 不依赖输入分布。**期望证明思路**: 设排序后元素为 A~1~..A~n~, 定义指示变量 X~ij~ = 1 当 A~i~ 与 A~j~ 被比较。两者比较当且仅当 A~i~..A~j~ 中第一个被选为基准的是 A~i~ 或 A~j~, 概率 2/(j−i+1)。故期望比较次数 E[C] = Σ~i 小于 j~ 2/(j−i+1) = 2n·H~n~ = O(n log n), 其中 H~n~ 为调和级数。\n\n## 工程优化\n\n① **三数取中**: 取 lo、mid、hi 三个位置的中位数作基准, 缓解已有序输入的退化; ② **三路划分**(Dutch National Flag): 分成 小于/等于/大于 三段, 大量重复元素时从 Θ(n²) 恢复到 O(n)~O(n log n); ③ **小区间插入排序**: 长度小于阈值(如 16)时改用插入排序, 常数更小; ④ 工业实现(如 C++ introsort)在递归深度超限时切换堆排序, 保证最坏 O(n log n)。快排**不稳定**但原地、缓存友好, 是实践中最快的比较排序。",
+   "keyPoints": [
+    "快排 = 划分 + 递归; Lomuto 简单、Hoare 交换少且常数小",
+    "最坏 Θ(n²)(有序输入配 Lomuto), 平均与期望 Θ(n log n)",
+    "随机化选基准: 把最坏输入变成低概率事件, 对任意固定输入期望 O(n log n)",
+    "期望证明: E[C] = Σ 2/(j-i+1) = O(n log n)(指示变量 + 调和级数)",
+    "不稳定; 工程上配三数取中/三路划分/小区间插入排序"
+   ],
+   "codes": [
+    {
+     "lang": "c",
+     "name": "随机化快速排序(Lomuto)",
+     "desc": "输入 n 与 n 个整数, 输出排序后数组。示例: 输入 5 / 4 3 2 1 0 → 输出 0 1 2 3 4",
+     "code": "#include <stdio.h>\n#include <stdlib.h>\n#include <time.h>\n\n/* 随机化快速排序: Lomuto 划分 + 随机基准, 期望 O(n log n) */\nint partition(int A[], int lo, int hi) {\n    int r = lo + rand() % (hi - lo + 1);   /* 随机选基准并换到末尾 */\n    int t = A[r]; A[r] = A[hi]; A[hi] = t;\n    int pivot = A[hi], i = lo - 1;          /* i: < pivot 区末尾 */\n    for (int j = lo; j < hi; j++) {\n        if (A[j] < pivot) {                 /* 小于基准的放入左区 */\n            i++;\n            t = A[i]; A[i] = A[j]; A[j] = t;\n        }\n    }\n    t = A[i + 1]; A[i + 1] = A[hi]; A[hi] = t;  /* 基准归位 */\n    return i + 1;\n}\n\nvoid quick_sort(int A[], int lo, int hi) {\n    if (lo >= hi) return;                    /* 递归基 */\n    int p = partition(A, lo, hi);\n    quick_sort(A, lo, p - 1);                /* 解决: 左半 */\n    quick_sort(A, p + 1, hi);                /* 解决: 右半 */\n}\n\nint main(void) {\n    int n, A[100000];\n    srand((unsigned)time(NULL));\n    printf(\"输入元素个数 n (<= 100000): \");\n    if (scanf(\"%d\", &n) != 1 || n <= 0 || n > 100000) { printf(\"输入无效!\\n\"); return 1; }\n    printf(\"输入 %d 个整数: \", n);\n    for (int i = 0; i < n; i++) scanf(\"%d\", &A[i]);\n    quick_sort(A, 0, n - 1);\n    printf(\"排序后: \");\n    for (int i = 0; i < n; i++) printf(\"%d \", A[i]);\n    printf(\"\\n\");\n    return 0;\n}\n"
+    },
+    {
+     "lang": "python",
+     "name": "快速排序(三路划分)",
+     "desc": "输入 n 与 n 个整数, 输出排序后数组。示例: 输入 6 / 3 6 3 2 6 3 1 → 输出 1 2 3 3 3 6 6",
+     "code": "# 快速排序(三路划分, Dutch National Flag): 大量重复元素不退化\n# 分成 < pivot / == pivot / > pivot 三段, 递归只处理 < 与 >\nimport random\nimport sys\n\ndef partition3(a, lo, hi):\n    pivot = a[lo]\n    lt, i, gt = lo, lo + 1, hi\n    while i < gt:\n        if a[i] < pivot:                 # 放入小于区\n            a[lt], a[i] = a[i], a[lt]\n            lt += 1; i += 1\n        elif a[i] > pivot:               # 放入大于区, i 不动再判\n            gt -= 1\n            a[i], a[gt] = a[gt], a[i]\n        else:                            # 等于 pivot, 留在中间\n            i += 1\n    return lt, gt\n\ndef quick_sort3(a, lo, hi):\n    if hi - lo <= 1:\n        return\n    r = random.randrange(lo, hi)         # 随机选基准, 消除最坏输入\n    a[lo], a[r] = a[r], a[lo]\n    lt, gt = partition3(a, lo, hi)\n    quick_sort3(a, lo, lt)               # 只递归 < 与 > 两段\n    quick_sort3(a, gt, hi)\n\ndata = list(map(int, sys.stdin.read().split()))\nn = data[0]\na = data[1:1 + n]\nsys.setrecursionlimit(10 ** 6)\nquick_sort3(a, 0, n)\nprint(\"排序后:\", *a)\n"
+    }
+   ],
+   "exercises": [
+    {
+     "diff": 3,
+     "q": "分析快速排序的最好、最坏、平均情况各对应什么输入, 最坏为什么是 Θ(n²); 随机化选基准「消除」了什么?",
+     "hint": "划分的平衡度决定递归深度与每层总代价; 已有序输入配 Lomuto 基准取末尾即最坏; 随机化把坏输入变成低概率事件。",
+     "ans": "**思路**: 快排的复杂度完全由划分的平衡度决定。\n\n**最好/平均**: 每次划分接近均衡, T(n) = 2T(n/2) + Θ(n) ⇒ Θ(n log n)。平均情况(随机输入)下划分期望均衡, Θ(n log n)。\n\n**最坏**: 每次划分成 1 与 n−1(如已有序输入配 Lomuto, 基准总取到极值; 或每轮基准恰为当前最小/最大), T(n) = T(n−1) + Θ(n) ⇒ Θ(n²)。此时递归深度 n, 每层比较 n 次。\n\n**随机化的作用**: 它不改变最坏复杂度的**值**(仍存在坏排列, 只是概率极小), 而是改变「最坏输入」的性质——对任何固定输入(包括攻击者精心构造的), 随机基准使期望运行时间 Θ(n log n); 对手无法预知基准而构造坏输入。也就是说, 随机化把「最坏输入」从确定性事件变成概率几乎为 0 的事件。"
+    },
+    {
+     "diff": 4,
+     "q": "数组含大量重复元素时, 普通 Lomuto 快速排序为何退化到 Θ(n²)? 设计三路划分(Dutch National Flag)算法并分析其复杂度, 给出关键代码。",
+     "hint": "等于 pivot 的元素被堆到同一侧导致两侧极不平衡; 三路划分分成 小于/等于/大于 三段, 递归只处理两端。",
+     "ans": "**思路**: 普通划分把等于 pivot 的元素全部放到一侧(取决于比较符), 全重复时两侧规模为 1 与 n−1, 每层 O(n)、深度 n ⇒ Θ(n²)。三路划分把区间分成 小于/等于/大于 三段, 等于段不再参与递归。\n\n**关键代码**:\n\n```text\npartition3(a, lo, hi):   # 返回 (lt, gt), [lo,lt)<p, [lt,gt)==p, [gt,hi)>p\n    pivot = a[lo]; lt = lo; gt = hi; i = lo + 1\n    while i < gt:\n        if a[i] < pivot: swap(a, lt, i); lt++; i++\n        elif a[i] > pivot: gt--; swap(a, i, gt)\n        else: i++\n    return lt, gt\n```\n\n**复杂度**: 递归只处理 < 与 > 两段。全相等时一次划分结束, **O(n)**; 一般输入期望 O(n log n); 最坏(每轮 ≤ 段为空、> 段为 n−1)仍 Θ(n²), 配合随机基准使期望 O(n log n)。\n\n**正确性**: 循环不变式: [lo, lt) 全小于 pivot, [lt, i) 全等于, [gt, hi) 全大于; 每次迭代保持, 终止时 i == gt 三段就位。"
+    },
+    {
+     "diff": 4,
+     "q": "快速选择(QuickSelect): 用划分求数组中第 k 小元素, 期望 O(n)。写出算法、复杂度分析(最坏与期望)及关键代码。",
+     "hint": "划分后基准在位置 p: p 等于 k 返回; 否则只递归一侧; 期望下每层规模几何衰减。",
+     "ans": "**思路**: 快排每次划分后只需递归包含第 k 小的一侧, 另一侧丢弃。\n\n**算法**: 随机选基准划分得位置 p: 若 p == k 返回 A[p]; 若 p 大于 k, 递归左半找第 k 小; 否则递归右半找第 k−p−1 小。\n\n**关键代码**:\n\n```text\nquick_select(A, lo, hi, k):\n    if lo == hi: return A[lo]\n    p = random_partition(A, lo, hi)\n    if p == k: return A[p]\n    if p > k: return quick_select(A, lo, p-1, k)\n    return quick_select(A, p+1, hi, k - p - 1)\n```\n\n**期望复杂度**: 随机划分下, 递归处理的一侧期望规模 ≤ 3n/4(基准期望落在中位附近), T(n) ≤ T(3n/4) + Θ(n) ⇒ **O(n)**; 更精细: 期望比较次数 ≤ cn。**最坏**: 每次划分最坏(如恒取极值), T(n) = T(n−1) + Θ(n) ⇒ Θ(n²); 随机化使其概率极小。\n\n**对比**: 排序后取第 k 个需 O(n log n), QuickSelect 原地期望线性, 是最优的选序算法。"
+    },
+    {
+     "diff": 5,
+     "q": "用指示变量严格证明随机化快速排序的期望运行时间为 O(n log n): 定义比较指示变量 X~ij~, 计算 E[C] 并化简为调和级数。",
+     "hint": "引理: 排序后元素 z~i~ 与 z~j~ 比较当且仅当集合 {z~i~..z~j~} 中第一个被选为基准的是某个端点; 概率 2/(j−i+1)。",
+     "ans": "**思路**: 运行时间由划分过程中的比较次数决定, 用线性期望把总比较数分解为指示变量之和。\n\n**证明**: 设排序后的元素为 z₁ ≤ z₂ ≤ … ≤ z~n~, Z~ij~ = {z~i~, …, z~j~}。定义 X~ij~ = 1 当且仅当 z~i~ 与 z~j~ 在快排过程中被比较过。\n\n**比较引理**: z~i~ 与 z~j~ 比较 ⟺ Z~ij~ 中第一个被选为基准的元素是 z~i~ 或 z~j~。⟸ 显然(基准与区间内元素比较); ⟹ 若先选到中间元素 z~k~(i 小于 k 小于 j), 则 z~i~、z~j~ 被分到不同子问题, 此后永不再比较。\n\n随机选择下 Z~ij~ 中每个元素等概率成为第一个基准, 故 P(X~ij~ = 1) = 2/(j−i+1)。于是期望比较次数\n\nE[C] = Σ~i 小于 j~ 2/(j−i+1) = Σ~k=1..n−1~ (n−k)·2/(k+1) ≤ 2n·Σ~k=1..n−1~ 1/(k+1) = 2n·(H~n~ − 1) = **O(n log n)**, 其中 H~n~ = Σ~k=1..n~ 1/k = Θ(log n)。\n\n**结论**: 期望比较次数 O(n log n), 每次比较 O(1), 故随机化快排期望运行时间 Θ(n log n)。该证明技巧(指示变量 + 线性期望)是随机算法分析的通用工具。"
+    }
+   ]
+  },
+  {
+   "id": "2-5",
+   "title": "最大子数组问题",
+   "keywords": [
+    "最大子数组",
+    "Kadane",
+    "跨中点",
+    "最优子结构",
+    "分治",
+    "前缀和"
+   ],
+   "desc": "最大子数组问题的分治 Θ(n log n) 与 Kadane Θ(n) 两种解法、证明与对比。",
+   "theory": "**问题** 给定数组 A[1..n](可含负数), 求连续子数组 A[i..j] 的最大和, 并(通常)输出区间。\n\n## 分治 Θ(n log n)\n\n取中点 mid, 最优子数组三类之一: 完全在左半、完全在右半、**跨越中点**。前两类递归求解; 跨中点的最优解 = 左半「以 mid 结尾的最大后缀」+ 右半「以 mid+1 开始的最大前缀」, 各一次 O(n) 扫描可得(连续性与独立性保证两部分可拼接)。T(n) = 2T(n/2) + Θ(n) ⇒ **Θ(n log n)**。**正确性**: 分类完备——任何子数组要么不跨中点(递归覆盖), 要么跨中点(扫描覆盖)。\n\n## Kadane Θ(n)\n\n维护 end~i~ = 以 A[i] 结尾的最大子数组和, 递推:\n\n> end~i~ = max(A~i~, end~(i−1)~ + A~i~), 全局答案 ans = max(ans, end~i~)。\n\n**正确性(归纳)**: 以 A[i] 结尾的子数组要么只含 A[i], 要么由「以 A[i−1] 结尾的某个子数组」续接 A[i] 构成——后者的最大和恰为 end~(i−1)~, 故递推式正确; 对 i 归纳即证。**Θ(n) 时间、O(1) 空间**。\n\n**逐步示例**: A = [-2, 1, -3, 4, -1, 2, 1, -5, 4] 上, end 序列为 -2, 1, -2, 4, 3, 5, 6, 1, 5(注意 end 为负时立即重开: 第 2 步 1 大于 -2+1, 从 1 重开; 第 4 步 4 大于 -2+4, 从 4 重开), 全局最大值 6, 对应子数组 [4, -1, 2, 1]。\n\n## 直观理解\n\nKadane 是「最优子结构 + 贪心丢弃」: 一旦前缀和为负, 它对后续没有任何贡献, 直接重开; 负数前缀绝不进入最优解。等价地, 若用前缀和 S~i~ = A₁+…+A~i~ 表示, 最大子数组和 = max~j~ (S~j~ − min~i≤j~ S~i~)——「当前前缀和减去历史最小前缀和」, 与 Kadane 的递推完全一致。这个「丢弃」正是它比分治快一个 log 的原因——子问题重叠, 前缀最优可复用, 而分治对重叠部分重复扫描。\n\n## 变体\n\n输出区间(记录重开位置)、环形数组(总和减去最小子段和)、二维最大子矩阵(压缩行后用 Kadane), 均基于同一递推。注意空子数组的约定: 若允许选空子数组, 答案与 0 取 max; 若不允许(如本题), 全负数组的答案是最大单元素。",
+   "keyPoints": [
+    "最大子数组: 连续子段和最大; 分治按「全左/全右/跨中点」三分类",
+    "跨中点最优 = 左半最大后缀 + 右半最大前缀, 各 O(n) 扫描",
+    "Kadane: end_i = max(A_i, end_{i-1} + A_i), Θ(n) 时间 O(1) 空间",
+    "最优子结构: 以 i 结尾的最优解重开或续接, 归纳证明正确",
+    "负前缀直接丢弃是 Kadane 的直观: 重叠子结构使分治多一个 log"
+   ],
+   "codes": [
+    {
+     "lang": "c",
+     "name": "最大子数组: Kadane 与分治对比",
+     "desc": "输入 n 与 n 个整数, 输出 Kadane 与分治两种方法的最大和及区间。示例: 输入 9 / -2 1 -3 4 -1 2 1 -5 4 → 最大和 6, 区间 [3, 6]",
+     "code": "#include <stdio.h>\n\n/* 最大子数组: Kadane O(n) 与分治 O(n log n) 对比 */\n\n/* Kadane: 维护以 i 结尾的最大和; 负前缀直接丢弃 */\nint kadane(int A[], int n, int *bl, int *br) {\n    int best = A[0], cur = A[0], l = 0, r = 0, cur_l = 0;\n    *bl = 0; *br = 0;                             /* 全负时区间即 [0, 0] */\n    for (int i = 1; i < n; i++) {\n        if (cur < 0) { cur = A[i]; cur_l = i; }   /* 负前缀无益, 重开 */\n        else cur += A[i];\n        if (cur > best) { best = cur; *bl = cur_l; *br = i; }\n    }\n    return best;\n}\n\n/* 跨中点的最大子数组 = 左半最大后缀(含 A[mid-1]) + 右半最大前缀(含 A[mid]) */\nint max_cross(int A[], int lo, int mid, int hi, int *bl, int *br) {\n    int sum = A[mid - 1], left = A[mid - 1], l = mid - 1;\n    for (int i = mid - 2; i >= lo; i--) {   /* 左半最大后缀 */\n        sum += A[i];\n        if (sum > left) { left = sum; l = i; }\n    }\n    sum = A[mid]; int right = A[mid], r = mid;\n    for (int i = mid + 1; i < hi; i++) {    /* 右半最大前缀 */\n        sum += A[i];\n        if (sum > right) { right = sum; r = i; }\n    }\n    *bl = l; *br = r;\n    return left + right;\n}\n\n/* 分治: [lo, hi) 内最大子数组和, 区间由引用参数带出 */\nint dc(int A[], int lo, int hi, int *bl, int *br) {\n    if (hi - lo == 1) { *bl = lo; *br = lo; return A[lo]; }\n    int mid = lo + (hi - lo) / 2, l1, r1, l2, r2, l3, r3;\n    int a = dc(A, lo, mid, &l1, &r1);      /* 解决: 左半 */\n    int b = dc(A, mid, hi, &l2, &r2);      /* 解决: 右半 */\n    int c = max_cross(A, lo, mid, hi, &l3, &r3);   /* 合并: 跨中点 */\n    if (a >= b && a >= c) { *bl = l1; *br = r1; return a; }\n    if (b >= a && b >= c) { *bl = l2; *br = r2; return b; }\n    *bl = l3; *br = r3; return c;\n}\n\nint main(void) {\n    int n, A[1000];\n    printf(\"输入元素个数 n (<= 1000): \");\n    if (scanf(\"%d\", &n) != 1 || n <= 0 || n > 1000) { printf(\"输入无效!\\n\"); return 1; }\n    printf(\"输入 %d 个整数(可含负数): \", n);\n    for (int i = 0; i < n; i++) scanf(\"%d\", &A[i]);\n    int bl, br;\n    int k = kadane(A, n, &bl, &br);\n    printf(\"Kadane: 最大和 %d, 区间 [%d, %d]\\n\", k, bl, br);\n    int dl, dr;\n    int d = dc(A, 0, n, &dl, &dr);\n    printf(\"分治:   最大和 %d, 区间 [%d, %d]\\n\", d, dl, dr);\n    return 0;\n}\n"
+    },
+    {
+     "lang": "python",
+     "name": "最大子数组: Kadane",
+     "desc": "输入 n 与 n 个整数, 输出最大子数组和与区间及对应元素。示例: 输入 9 / -2 1 -3 4 -1 2 1 -5 4 → 最大和 6, 区间 [3, 6]",
+     "code": "# Kadane 算法: 求最大子数组和并输出区间; 负前缀直接丢弃\nimport sys\n\ndef kadane(a):\n    best = cur = a[0]\n    bl = br = cur_l = 0\n    for i in range(1, len(a)):\n        if cur < 0:                    # 以 i-1 结尾的负前缀无益, 重开\n            cur, cur_l = a[i], i\n        else:\n            cur += a[i]\n        if cur > best:\n            best, bl, br = cur, cur_l, i\n    return best, bl, br\n\ndata = list(map(int, sys.stdin.read().split()))\nn = data[0]\na = data[1:1 + n]\ns, l, r = kadane(a)\nprint(f\"最大子数组和: {s}\")\nprint(f\"区间: [{l}, {r}]\")\nprint(\"对应元素:\", *a[l:r + 1])\n"
+    }
+   ],
+   "exercises": [
+    {
+     "diff": 3,
+     "q": "用归纳法证明 Kadane 算法的正确性: 证明 end~i~ = max(A~i~, end~(i−1)~ + A~i~) 恰为以 A[i] 结尾的最大子数组和, 并分析复杂度。",
+     "hint": "以 i 结尾的子数组只有两类: 只含 A[i], 或 [j..i] 且 [j..i−1] 是以 i−1 结尾的子数组。",
+     "ans": "**思路**: 最优子结构——以 i 结尾的最优解要么重开, 要么续接以 i−1 结尾的最优解。\n\n**证明(对 i 归纳)**: 基础 i = 0: end₀ = A₀, 平凡正确。假设 end~(i−1)~ 恰为以 A[i−1] 结尾的最大子数组和。以 A[i] 结尾的子数组分两类: ① 就是 [i, i], 和为 A~i~; ② 形如 [j, i](j 小于 i), 其和 = (A[j..i−1] 之和) + A~i~, 其中 A[j..i−1] 是以 i−1 结尾的某个子数组, 和的最大值恰为 end~(i−1)~。故 end~i~ = max(A~i~, end~(i−1)~ + A~i~), 归纳完成。全局答案 = max~i~ end~i~, 即算法中的 ans。\n\n**复杂度**: 一趟扫描, Θ(n) 时间, O(1) 额外空间。\n\n**要点**: 递推式同时给出「重开」与「续接」两条路径, 负前缀被 max 自然丢弃。"
+    },
+    {
+     "diff": 4,
+     "q": "分治求解最大子数组: 完整证明三分类的完备性与跨中点情形的正确性, 并推导复杂度 Θ(n log n)。",
+     "hint": "跨中点最优 = 左半以 mid 结尾的最大后缀 + 右半以 mid+1 开始的最大前缀; 二者独立可拼接。",
+     "ans": "**思路**: 按最优子数组与中点 mid 的位置关系分类讨论。\n\n**完备性**: 对区间 [lo, hi] 取 mid, 任意子数组 S 恰属三类之一: 完全在 [lo, mid−1]、完全在 [mid, hi]、跨中点(含 A[mid] 与 A[mid+1])。前两类由递归覆盖。\n\n**跨中点情形**: 跨中点子数组 S = S₁ ∪ S₂, S₁ 以 mid 结尾、S₂ 以 mid+1 开始, 和 = sum(S₁) + sum(S₂)。固定 S₂ 时, 使和最大的 S₁ 恰为左半以 mid 结尾的最大后缀(记为 L); 反之固定 S₁ 时最优 S₂ 为右半最大前缀(记为 R)。L 与 R 独立可拼接(子数组连续性只要求 S₁ 含 mid、S₂ 含 mid+1, 二者相邻), 故跨中点最优 = L + R。左半最大后缀与右半最大前缀各一次 O(n) 扫描求得。\n\n**正确性归纳**: 基础 n = 1 平凡; 递归两半正确(归纳假设) + 跨中点扫描正确 + 分类完备 ⇒ 整体正确。\n\n**复杂度**: T(n) = 2T(n/2) + Θ(n) ⇒ Θ(n log n) 时间, O(log n) 递归栈空间。"
+    },
+    {
+     "diff": 4,
+     "q": "环形数组最大子数组和: 数组首尾相接成一个环, 求最大连续子段和(允许全负, 此时返回最大单元素), 要求 O(n)。",
+     "hint": "分跨环与不跨环两类; 跨环最大和 = 总和 − 最小普通子数组和; 全负特判。",
+     "ans": "**思路**: 环上连续段要么不跨越「接缝」(即普通数组的子数组), 要么跨越接缝; 跨接缝段的补集恰是普通数组的连续段。\n\n**算法**: ① 不跨环: 直接 Kadane 得 ans₁; ② 跨环: 跨环段和 = total − (补集段和), 要使跨环段最大即补集段最小, 用 Kadane 变体求最小子数组和: minEnd~i~ = min(A~i~, minEnd~(i−1)~ + A~i~), 得 ans₂ = total − minSum; ③ 答案 = max(ans₁, ans₂); 若 ans₁ 小于 0(全负), 返回最大单元素(空子数组不合法)。\n\n**正确性**: 分类完备——环上任意连续段要么不跨接缝(①), 要么跨接缝, 其补集为不跨接缝段(②), 且补集段的最小值对应跨环段的最大值(补集互斥且覆盖全环)。全负时②中的「空补集」不合法, 需特判。\n\n**复杂度**: 两次线性扫描, O(n) 时间, O(1) 空间。"
+    },
+    {
+     "diff": 5,
+     "q": "最大子矩阵和: 给定 m×n 整数矩阵 M, 求元素和最大的子矩阵, 要求 O(m²n)(可交换行列取较小边枚举)。",
+     "hint": "枚举上下边界(r1, r2), 把每列压缩成列和, 得到一维数组, 在其上跑 Kadane。",
+     "ans": "**思路**: 子矩阵由 上下边界 + 左右边界 决定; 固定上下边界后, 问题退化为 1D 最大子数组。\n\n**算法**: 对每个 r1(0..m−1), 初始化 col[j] = 0; 对 r2 = r1..m−1: col[j] += M[r2][j](O(n) 增量维护列和), 在 col 上跑 Kadane 得最大和与左右边界, 更新全局答案。\n\n**正确性**: 任意子矩阵由其上下边界唯一确定; 固定 (r1, r2) 后, 子矩阵和 = Σ~j=j1..j2~ col[j], 恰为列和数组上的连续子段和——1D Kadane 正确性已证(2-5 节)。枚举所有边界对覆盖全部子矩阵。\n\n**复杂度**: 边界对 O(m²) 个, 每对 Kadane O(n) ⇒ O(m²n); 若 n 更小可交换行列, 取 O(min(m,n)²·max(m,n))。\n\n**要点**: 列和增量维护避免重复求和; Kadane 返回区间即可还原子矩阵四边界。这是「降维 + 复用经典算法」的典型。"
+    }
+   ]
+  },
+  {
+   "id": "2-6",
+   "title": "大整数乘法 Karatsuba",
+   "keywords": [
+    "Karatsuba",
+    "大整数乘法",
+    "分治",
+    "交叉项",
+    "Toom-Cook",
+    "FFT"
+   ],
+   "desc": "Karatsuba 大整数乘法: 3 次递归乘法实现 Θ(n^1.585), 及其与 Toom-Cook、FFT 的推广关系。",
+   "theory": "**问题** 两个 n 位整数相乘。竖式(学校算法)需每位相乘再错位累加, Θ(n²) 次单位乘法——n 加倍, 工作量翻 4 倍。\n\n## Karatsuba(1962)\n\n把 x, y 各拆成高低两半(基 B = 2^m 或 10^m, m ≈ n/2):\n\nx = x₁·B + x₀, y = y₁·B + y₀, 则\n\nxy = x₁y₁·B² + (x₁y₀ + x₀y₁)·B + x₀y₀。\n\n**关键**: 交叉项不需要两次乘法:\n\nx₁y₀ + x₀y₁ = (x₁ + x₀)(y₁ + y₀) − x₁y₁ − x₀y₀。\n\n于是只需 **3 次递归乘法** z₂ = x₁y₁, z₀ = x₀y₀, z₁ = (x₁+x₀)(y₁+y₀) − z₂ − z₀, 外加 O(n) 的加减与移位(合并)。算法步骤:\n\n```text\nkaratsuba(x, y):\n    if x, y 位数很小: 返回 x*y                # 递归基\n    m = 位数的一半; B = 10^m(或 2^m)\n    拆: x1, x0 = x 的高半、低半; y1, y0 = y 的高半、低半\n    z2 = karatsuba(x1, y1)                    # 3 次递归乘法\n    z0 = karatsuba(x0, y0)\n    z1 = karatsuba(x1+x0, y1+y0) - z2 - z0\n    返回 z2·B² + z1·B + z0                    # 合并: 移位与相加\n```\n\n**小例验证**: x = 12, y = 34, 拆成 x₁=1, x₀=2, y₁=3, y₀=4: z₂ = 1×3 = 3, z₀ = 2×4 = 8, z₁ = (1+2)(3+4) − 3 − 8 = 21 − 11 = 10; 结果 = 3×100 + 10×10 + 8 = 408 = 12×34 ✓。3 次乘法(1×3, 2×4, 3×7)替代了 4 次(1×3, 1×4, 2×3, 2×4)。\n\n## 正确性论证\n\n算法的正确性由代数恒等式保证: xy = (x₁B + x₀)(y₁B + y₀) 展开后, B² 项系数 z₂ = x₁y₁, B 项系数 x₁y₀ + x₀y₁ = z₁(由第二个恒等式), 常数项 z₀ = x₀y₀; 递归调用正确(归纳假设)+ 恒等式精确成立 ⇒ 合并结果恰为 xy。注意 z₁ 的计算中 (x₁+x₀)(y₁+y₀) 是**一次**乘法, 与 z₂、z₀ 的递归结果做加减, 全部运算都是精确整数运算, 无舍入误差——这是与 FFT 类算法的本质区别(FFT 依赖浮点或模数技巧)。\n\n## 复杂度\n\nT(n) = 3T(n/2) + O(n), 主定理 c* = log~2~3 ≈ 1.585, f(n) = O(n) = O(n^(c*−ε)) ⇒ **Θ(n^(log~2~3^)) ≈ Θ(n^1.585^)**——首次突破 O(n²) 的乘法界, 是「分治改进算法」的典范: **用更多的加法换取更少的乘法**。n = 10^6 位时, 朴素约 10^12 次乘法, Karatsuba 约 10^9.5 次, 快约 300 倍; n 越大优势越明显(指数差 0.415)。\n\n## 实现细节\n\n① 递归基: 位数较小时直接用朴素乘法, 常数更小; ② (x₁ + x₀) 可能进位到 m+1 位, 不影响渐近但实现要对齐; ③ 中间差 z₁ 可为负, 需支持带符号运算; ④ 合并时的移位与进位要小心; ⑤ 64 位实现中 (x₁+x₀)(y₁+y₀) 可能溢出, 需 128 位中间类型或分步计算(见本节练习 2)。\n\n## 推广\n\nToom-Cook: 拆成 3 段用 5 次乘法, T(n) = 5T(n/3) + O(n) ⇒ Θ(n^(log~3~5^)) ≈ Θ(n^1.465^); 更激进的是基于多项式求值/插值的 FFT 乘法, 达到 Θ(n log n)(Schönhage–Strassen 及其后继)。它们都是「减少递归乘法次数」这条主线的延伸, 也是现代大整数库(GMP)的基石。",
+   "keyPoints": [
+    "朴素乘法 Θ(n²); Karatsuba 用 3 次递归乘法 + O(n) 加法换时间",
+    "核心恒等式: x1y0+x0y1 = (x1+x0)(y1+y0) − x1y1 − x0y0",
+    "T(n) = 3T(n/2) + O(n) ⇒ Θ(n^(log_2 3)) ≈ Θ(n^1.585)",
+    "更多加法换更少乘法: 分治改进算法的典型范式",
+    "Toom-Cook(5 次乘法, n^1.465)与 FFT(Θ(n log n))是同一思想的延伸"
+   ],
+   "codes": [
+    {
+     "lang": "c",
+     "name": "Karatsuba 大整数乘法(64 位)",
+     "desc": "输入两个整数 a b(建议 ≤ 10^9), 输出朴素乘法与 Karatsuba 结果并核对一致。示例: 输入 123456789 987654321 → 输出 121932631112635269 / 一致",
+     "code": "#include <stdio.h>\n\n/* Karatsuba 大整数乘法(64 位版): 拆成 16 位高低两半, 3 次递归乘法\n * 输入限制 a*b < 2^64; 中间积用 __int128 防溢出 */\ntypedef unsigned long long u64;\ntypedef unsigned __int128 u128;\n\nu64 karatsuba(u64 x, u64 y) {\n    if (x < 65536 && y < 65536) return x * y;   /* 递归基: 小数字直乘 */\n    u64 x1 = x >> 16, x0 = x & 0xFFFF;          /* 分解: 高低两半 */\n    u64 y1 = y >> 16, y0 = y & 0xFFFF;\n    u64 z2 = karatsuba(x1, y1);                 /* 3 次递归乘法 */\n    u64 z0 = karatsuba(x0, y0);\n    u64 z1 = (u64)((u128)(x1 + x0) * (u128)(y1 + y0)) - z2 - z0;\n    /* 合并: xy = z2*2^32 + z1*2^16 + z0 */\n    return (u64)(((u128)z2 << 32) + ((u128)z1 << 16) + z0);\n}\n\nint main(void) {\n    u64 a, b;\n    printf(\"输入两个整数 a b (建议 <= 10^9, 保证 a*b < 2^64): \");\n    if (scanf(\"%llu %llu\", &a, &b) != 2) { printf(\"输入无效!\\n\"); return 1; }\n    u64 p1 = a * b;                              /* 朴素乘法作对照 */\n    u64 p2 = karatsuba(a, b);\n    printf(\"朴素乘法结果: %llu\\n\", p1);\n    printf(\"Karatsuba 结果: %llu\\n\", p2);\n    printf(\"两者一致: %s\\n\", p1 == p2 ? \"是\" : \"否\");\n    return 0;\n}\n"
+    },
+    {
+     "lang": "python",
+     "name": "Karatsuba 大整数乘法",
+     "desc": "输入两个整数, 输出 Karatsuba 乘积并与内置乘法核对。示例: 输入 123456789 987654321 → 输出 121932631112635269 / True",
+     "code": "# Karatsuba 大整数乘法: 十进制拆分, 3 次递归乘法 + O(n) 加减\nimport sys\n\ndef karatsuba(x, y):\n    if x < 10 or y < 10:              # 递归基: 一位数直接相乘\n        return x * y\n    m = max(len(str(x)), len(str(y))) // 2\n    b = 10 ** m\n    x1, x0 = divmod(x, b)             # 分解: x = x1*b + x0\n    y1, y0 = divmod(y, b)\n    z2 = karatsuba(x1, y1)            # 3 次递归乘法\n    z0 = karatsuba(x0, y0)\n    z1 = karatsuba(x1 + x0, y1 + y0) - z2 - z0   # 交叉项\n    return z2 * b * b + z1 * b + z0   # 合并\n\ndata = list(map(int, sys.stdin.read().split()))\na, b = data[0], data[1]\nr = karatsuba(a, b)\nprint(f\"{a} × {b} = {r}\")\nprint(\"与内置乘法一致:\", r == a * b)\n"
+    }
+   ],
+   "exercises": [
+    {
+     "diff": 3,
+     "q": "写出 Karatsuba 乘法的递归式并推导渐近复杂度; 当 n = 10^6 位时, 朴素乘法与 Karatsuba 各约需多少次单位乘法(数量级)?",
+     "hint": "主定理情形 1: 比较 f(n) = O(n) 与 n^(log₂3); 数量级对比即可。",
+     "ans": "**思路**: 递归式由「3 次递归乘法 + O(n) 合并」直接给出, 用主定理求解。\n\n**递归式与复杂度**: T(n) = 3T(n/2) + O(n), a = 3, b = 2, c* = log₂3 ≈ 1.585; f(n) = O(n) = O(n^(c*−ε))(取 ε = 0.5 即可), 主定理**情形 1**(叶子主导) ⇒ T(n) = Θ(n^(log₂3)) ≈ Θ(n^1.585)。\n\n**数量级对比**: n = 10^6: 朴素 n² = 10^12 次; Karatsuba ≈ (10^6)^1.585 = 10^9.51 ≈ 3.2×10^9 次, 快约 300 倍。\n\n**直觉**: 指数差 0.415 来自「3 次乘法 vs 4 次乘法」——把 2 路分裂的乘法数从 4 降到 3, 叶子数从 4^(log₂n) = n² 降到 3^(log₂n) = n^1.585。"
+    },
+    {
+     "diff": 4,
+     "q": "证明 Karatsuba 合并恒等式 z₁ = (x₁+x₀)(y₁+y₀) − x₁y₁ − x₀y₀ 的正确性; 并分析 64 位整数实现中 (x₁+x₀)(y₁+y₀) 的溢出风险与应对方法。",
+     "hint": "直接展开多项式再相减; 溢出分析: x₁+x₀ 可达 2^m 量级, 乘积需要 2m+2 位。",
+     "ans": "**思路**: 恒等式是代数展开; 溢出是工程细节, 决定中间精度。\n\n**恒等式证明**: 展开 (x₁+x₀)(y₁+y₀) = x₁y₁ + x₁y₀ + x₀y₁ + x₀y₀, 减去 z₂ = x₁y₁ 与 z₀ = x₀y₀, 恰得 x₁y₀ + x₀y₁——即交叉项。故 3 次乘法足够。\n\n**溢出分析**: 若 x₁, x₀ 各占 m 位(≤ 2^m − 1), 则 x₁+x₀ ≤ 2^(m+1) − 2, (x₁+x₀)(y₁+y₀) ≤ (2^(m+1)−2)² ≈ 2^(2m+2), 超出 2m 位容器——例如 64 位实现中 m = 32 时需 66 位。\n\n**应对**: ① 用 128 位中间类型(__int128)计算该乘积, 再截断回 64 位(本平台 C 示例即此法, 已实测); ② 或把 (x₁+x₀) 再拆半递归相乘; ③ 或采用「先算 (x₁+x₀) 与 (y₁+y₀) 的低位乘积」的分步方案。这也说明大整数库必须时刻警惕中间精度。"
+    },
+    {
+     "diff": 5,
+     "q": "Toom-Cook 3 路乘法: 把 x, y 各拆成 3 段(基 B), 说明如何用 5 次乘法代替 9 次乘法完成乘积, 写出递推式与复杂度, 并简述插值恢复系数的思路。",
+     "hint": "把数看作二次多项式, 乘积是四次多项式, 由 5 个采样点的值唯一确定; 采样点取 0, 1, −1, 2, ∞。",
+     "ans": "**思路**: Karatsuba 是 2 路 3 乘法; Toom-Cook 推广到 3 路, 用多项式求值-插值框架减少乘法。\n\n**算法**: 令 x(t) = x₂t² + x₁t + x₀, y(t) = y₂t² + y₁t + y₀(系数即三段数字, t = B 时还原 x)。乘积 z(t) = x(t)·y(t) 是四次多项式, 由 5 个点唯一确定。对 5 个采样点 t ∈ {0, 1, −1, 2, ∞}: 计算 x(t)、y(t)(各 O(n) 加减), 相乘得 z(t) 的值——共 **5 次乘法**; 再由插值(解 5×5 线性方程组, 系数为小常数, 共 O(n) 运算)恢复 z 的 7 个系数, 按 B 的幂合并移位即得乘积。\n\n**递归式与复杂度**: T(n) = 5T(n/3) + O(n), c* = log₃5 ≈ 1.465, f(n) = O(n) = O(n^(c*−ε)), 主定理情形 1 ⇒ **Θ(n^(log₃5)) ≈ Θ(n^1.465)**。\n\n**要点**: 乘法从 9 次降到 5 次(3 路分裂的 3×3), 求值/插值全是 O(n) 加减; 采样点取特殊值使求值插值只需加减与除以 2、3 等小常数, 避免除法开销。进一步推广到 k 路需 2k−1 次乘法, 极限是 FFT 的 Θ(n log n)。"
+    }
+   ]
+  },
+  {
+   "id": "2-7",
+   "title": "平面最近点对",
+   "keywords": [
+    "最近点对",
+    "条带",
+    "分治",
+    "欧氏距离",
+    "抽屉原理",
+    "中位线"
+   ],
+   "desc": "平面最近点对的分治算法: ±d 条带与按 y 排序的合并技巧, O(n log n) 与正确性论证。",
+   "theory": "**问题** 给定平面 n 个点, 求欧氏距离最近的两点。朴素两两比较 Θ(n²)。\n\n## 分治 O(n log n)\n\n按 x 坐标排序后递归:\n\n1. **分解**: 按 x 中位数把点集分成左右两半;\n2. **解决**: 递归求两半内部的最近距离 d = min(d~L~, d~R~);\n3. **合并**: 跨中线的更近点对只可能出现在「距中线 x 距离小于 d」的**条带**内——若跨线点对距离小于 d, 则两点 x 差必然小于 d。把条带内点按 y 排序, 对每个点只与后面少数候选比较; 合并代价 O(n log n)(每层按 y 排序)或 O(n)(归并保持 y 序), 总 T(n) = 2T(n/2) + O(n) ⇒ **Θ(n log n)**。\n\n## 条带引理(正确性核心)\n\n同侧最近距离 ≥ d 时, 任意 2d×d 矩形(宽 2d、高 d)内至多 8 个点: 把矩形分成 8 个 (d/2)×(d/2) 小方块——方块宽只有 d/2, **不可能跨中线**, 故同一方块内两点必同侧; 任一小方块内两点距离 ≤ d/√2 小于 d, 与同侧最近距离 ≥ d 矛盾, 故每方块至多 1 点。因此对按 y 排序的条带中任一点 p, 距离 p 小于 d 的候选至多 7 个, 只需与**后 7 个点**比较(或遇到 y 差平方 ≥ d² 提前终止)——条带检查 O(n) 次距离计算, 合并线性。\n\n**示例**: 点集 {(0,0), (1,1), (3,4), (5,6), (10,2)} 按 x 排序后中位线 x = 3; 左半内部最近 d² = 2(即 (0,0) 与 (1,1)), 右半内部 d² = 41; 合并时条带 = 距 x=3 平方距离小于 2 的点, 仅 (3,4), 无跨线更近对; 最终答案 d² = 2。\n\n## 复杂度推导\n\n设排序与预排序共 O(n log n)。递归 T(n) = 2T(n/2) + M(n), 其中合并 M(n) = O(n)(条带收集 + 按 y 归并 + 常数候选检查)。由主定理情形 2, **T(n) = Θ(n log n)**。若每层条带内用 qsort 重新按 y 排序, 则 M(n) = O(n log n), 总复杂度退化为 Θ(n log² n)——这是实现层面的常见取舍, 严格 O(n log n) 需按 y 预排序并在递归中归并保持。\n\n## 实现要点\n\n① 整数坐标时用**距离平方**比较, 避免浮点开方的精度问题; ② 按 y 预排序并在递归中归并, 使每层合并线性; ③ 递归基 n ≤ 3 暴力; ④ 重复点(距离 0)要处理; ⑤ 递归深度 O(log n), 不会爆栈; ⑥ 条带判断用 (x − mid_x)² 小于 best 而非开方, 全程整数运算。",
+   "keyPoints": [
+    "分治: 中线分解、递归求两半、合并检查距中线 ±d 的条带",
+    "条带引理: 2d×d 矩形至多 8 个两两距离 ≥ d 的点 → 每点只需检查后 7 个",
+    "小方块宽 d/2 不跨中线, 同方块内两点必同侧——引理证明的关键",
+    "合并 O(n)(y 序归并)时总 T(n)=2T(n/2)+O(n) ⇒ Θ(n log n)",
+    "用距离平方避免浮点误差; 重复点距离 0; 递归深度 O(log n)"
+   ],
+   "codes": [
+    {
+     "lang": "c",
+     "name": "平面最近点对(分治)",
+     "desc": "输入 n 与 n 个点坐标 x y, 输出最近距离平方、距离与最近点对。示例: 输入 5 / 0 0 1 1 3 4 5 6 10 2 → 最近距离平方 2, 点 (0,0) 与 (1,1)",
+     "code": "#include <stdio.h>\n#include <stdlib.h>\n#include <math.h>\n\n/* 平面最近点对: 分治。整数坐标, 全程用距离平方避免开方。\n * 条带内按 y 排序后, 每个点只需检查后面若干候选(抽屉原理保证至多 7 个)。\n * 注: 条带内用 qsort 每层排序, 演示版总 O(n log^2 n);\n * 按 y 预排序 + 归并保持可做到严格 O(n log n)。 */\ntypedef struct { long long x, y; } Pt;\n\nlong long dist2(Pt a, Pt b) {\n    long long dx = a.x - b.x, dy = a.y - b.y;\n    return dx * dx + dy * dy;\n}\n\nint cmp_x(const void *p, const void *q) {\n    Pt *a = (Pt *)p, *b = (Pt *)q;\n    if (a->x != b->x) return a->x > b->x ? 1 : -1;\n    if (a->y != b->y) return a->y > b->y ? 1 : -1;\n    return 0;\n}\n\nint cmp_y(const void *p, const void *q) {\n    Pt *a = (Pt *)p, *b = (Pt *)q;\n    if (a->y != b->y) return a->y > b->y ? 1 : -1;\n    if (a->x != b->x) return a->x > b->x ? 1 : -1;\n    return 0;\n}\n\nPt P[5000], strip[5000];\nlong long best; Pt pa, pb;\n\nvoid solve(int lo, int hi) {              /* 对按 x 排序的 P[lo..hi) 分治 */\n    if (hi - lo <= 3) {                   /* 递归基: 小规模暴力 */\n        for (int i = lo; i < hi; i++)\n            for (int j = i + 1; j < hi; j++) {\n                long long d = dist2(P[i], P[j]);\n                if (d < best) { best = d; pa = P[i]; pb = P[j]; }\n            }\n        return;\n    }\n    int mid = (lo + hi) / 2;\n    long long mid_x = P[mid].x;           /* 中线 */\n    solve(lo, mid);                       /* 解决: 左半 */\n    solve(mid, hi);                       /* 解决: 右半 */\n    int k = 0;                            /* 合并: 收集条带内点 */\n    for (int i = lo; i < hi; i++) {\n        long long dx = P[i].x - mid_x;\n        if (dx * dx < best) strip[k++] = P[i];\n    }\n    qsort(strip, k, sizeof(Pt), cmp_y);   /* 条带内按 y 排序 */\n    for (int i = 0; i < k; i++)\n        for (int j = i + 1; j < k; j++) {\n            long long dy = strip[j].y - strip[i].y;\n            if (dy * dy >= best) break;   /* y 差已超 best, 后面更远 */\n            long long d = dist2(strip[i], strip[j]);\n            if (d < best) { best = d; pa = strip[i]; pb = strip[j]; }\n        }\n}\n\nint main(void) {\n    int n;\n    printf(\"输入点数 n (<= 5000): \");\n    if (scanf(\"%d\", &n) != 1 || n < 2 || n > 5000) { printf(\"输入无效!\\n\"); return 1; }\n    printf(\"输入 %d 个点坐标 x y: \", n);\n    for (int i = 0; i < n; i++) scanf(\"%lld %lld\", &P[i].x, &P[i].y);\n    qsort(P, n, sizeof(Pt), cmp_x);       /* 按 x 排序 */\n    best = 1000000000000000000LL;         /* 初始化为无穷大 */\n    solve(0, n);\n    printf(\"最近距离平方: %lld\\n\", best);\n    printf(\"最近距离: %.4f\\n\", sqrt((double)best));\n    printf(\"最近点对: (%lld, %lld) 与 (%lld, %lld)\\n\", pa.x, pa.y, pb.x, pb.y);\n    return 0;\n}\n"
+    },
+    {
+     "lang": "python",
+     "name": "平面最近点对(分治)",
+     "desc": "输入 n 与 n 个点坐标 x y, 输出最近距离平方与距离。示例: 输入 5 / 0 0 1 1 3 4 5 6 10 2 → 最近距离平方 2",
+     "code": "# 平面最近点对: 分治 O(n log n)。按 y 归并保持有序, 条带内常数候选。\nimport math\nimport sys\n\ndef dist2(p, q):\n    return (p[0] - q[0]) ** 2 + (p[1] - q[1]) ** 2\n\ndef brute(pts):\n    best = float('inf')\n    for i in range(len(pts)):\n        for j in range(i + 1, len(pts)):\n            best = min(best, dist2(pts[i], pts[j]))\n    return best\n\ndef closest(px):\n    # px 按 x 排序; 返回 (最小距离平方, 按 y 排序的点表)\n    n = len(px)\n    if n <= 3:\n        return brute(px), sorted(px, key=lambda p: (p[1], p[0]))\n    mid = n // 2\n    mid_x = px[mid][0]\n    dl, pyl = closest(px[:mid])          # 解决: 左半\n    dr, pyr = closest(px[mid:])          # 解决: 右半\n    d = min(dl, dr)\n    # 合并: 按 y 归并左右, 得到整段 y 序 (O(n))\n    py, i, j = [], 0, 0\n    while i < len(pyl) and j < len(pyr):\n        if pyl[i][1] <= pyr[j][1]:\n            py.append(pyl[i]); i += 1\n        else:\n            py.append(pyr[j]); j += 1\n    py += pyl[i:] + pyr[j:]\n    # 条带: 距中线 x 差平方 < d 的点, 按 y 序检查\n    strip = [p for p in py if (p[0] - mid_x) ** 2 < d]\n    for i in range(len(strip)):\n        for j in range(i + 1, len(strip)):\n            dy = strip[j][1] - strip[i][1]\n            if dy * dy >= d:\n                break\n            d = min(d, dist2(strip[i], strip[j]))\n    return d, py\n\ndata = list(map(int, sys.stdin.read().split()))\nn = data[0]\npts = [(data[1 + 2 * i], data[2 + 2 * i]) for i in range(n)]\nd, _ = closest(sorted(pts, key=lambda p: (p[0], p[1])))\nprint(\"最近距离平方:\", d)\nprint(\"最近距离: %.4f\" % math.sqrt(d))\n"
+    }
+   ],
+   "exercises": [
+    {
+     "diff": 3,
+     "q": "一维最近点对: 直线上给定 n 个点(坐标), 求距离最近的两点, 设计 O(n log n) 算法并讨论能否做到 O(n)。",
+     "hint": "排序后相邻差最小: 最近对必在排序相邻的点之间; 线性性取决于坐标的性质。",
+     "ans": "**思路**: 一维的「条带」退化为相邻检查。\n\n**算法**: 对坐标排序, 扫描相邻差取最小: 若最近对是 (p, q) 且它们之间有第三个点 r(排序意义下), 则 (p, r) 与 (r, q) 的距离均不超过 (p, q), 故最近对必相邻。排序 O(n log n) + 扫描 O(n)。\n\n**能否 O(n)**: 若坐标是整数且值域小, 用桶/计数排序 + 相邻扫描可 O(n); 一般比较模型下没有已知的 Ω(n log n) 下界, 但有随机化期望 O(n) 的算法(如 Rabin 的随机抽样算法); 确定性线性算法可利用坐标的代数结构。\n\n**复杂度**: 排序主导 O(n log n); 若已排序则 O(n)。"
+    },
+    {
+     "diff": 4,
+     "q": "条带引理: 同侧最近距离 ≥ d 时, 证明任意 2d×d 矩形(宽 2d、高 d)内至多 8 个点; 由此证明最近点对合并时, 每个点只需检查按 y 排序后的后 7 个点。",
+     "hint": "把矩形分成 8 个 (d/2)×(d/2) 小方块; 关键: 方块宽 d/2 不跨中线, 故同方块内两点必同侧。",
+     "ans": "**思路**: 用反证 + 抽屉原理, 关键是「小方块不跨中线」保证同侧性。\n\n**证明**: 设中线为 x = mid, 矩形为 [mid−d, mid+d]×[y₀, y₀+d], 分成 2 行 4 列共 8 个边长 d/2 的小方块。任一小方块内两点距离 ≤ √((d/2)²+(d/2)²) = d/√2 小于 d。由于方块宽只有 d/2, 左边两列完全位于中线左侧、右边两列完全位于右侧——**同一方块内两点必同侧**; 若某方块含两点, 则同侧存在距离小于 d 的点对, 与「左(右)半内部最近距离 ≥ d」矛盾。故每方块至多 1 点, 矩形内至多 8 点。\n\n**推论**: 对条带内按 y 排序的任一点 p, 与 p 距离小于 d 的候选点必落在以 p 为下界的 2d×d 矩形内(共至多 7 个, 去掉 p 本身), 因此只需检查 p 之后的 7 个点; 等价地, 遇到 y 差平方 ≥ d² 即可提前终止。条带检查总代价 O(n)。"
+    },
+    {
+     "diff": 5,
+     "q": "圆上最近点对: 圆上有 n 个点, 以角度 θ~i~ ∈ [0, 2π) 给出, 求最短弧长(或弦长)对应的两点, 要求 O(n log n), 特别注意角度跨越 0 的边界。",
+     "hint": "排序后相邻角度差 + 首尾跨 0 的差; 弧长与弦长都随小角度差单调。",
+     "ans": "**思路**: 圆上的「一维最近点对」, 排序后相邻检查, 难点是首尾跨 0。\n\n**算法**: 排序得 θ₀ ≤ θ₁ ≤ … ≤ θ~(n−1)~。候选: 相邻差 δ~i~ = θ~(i+1)~ − θ~i~(i = 0..n−2)与跨零差 δ~last~ = θ₀ + 2π − θ~(n−1)~; 取最小 δ*, 对应两点即答案。\n\n**正确性**: 圆上两点间较短弧对应角度差 δ = min(|θ~i~ − θ~j~|, 2π − |θ~i~ − θ~j~|) ∈ [0, π]。若最近对 (θ~i~, θ~j~)(i 小于 j)不相邻, 则它们之间(排序意义下)存在第三个点 θ~k~; 三个点两两的较短弧角度差满足三角不等式, 中间点 θ~k~ 必与某端点构成更小的角度差, 矛盾。故最近对必在排序相邻或首尾之间; 首尾对的角度差正是 δ~last~(跨 0 情形)。弧长 r·δ 与弦长 2r·sin(δ/2) 都在 [0, π] 上随 δ 单调, 结论一致。\n\n**复杂度**: 排序 O(n log n) 主导, 扫描 O(n)。易错点: 忘记首尾跨 0 的候选; 排序后角度差应取 min(δ, 2π−δ) 再比较(若比较的是较短弧)。"
+    }
+   ]
+  }
+ ]
+}

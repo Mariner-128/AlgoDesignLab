@@ -1,0 +1,280 @@
+{
+ "id": "ch11",
+ "order": 11,
+ "title": "数论算法",
+ "subtitle": "扩展欧几里得、快速幂、素数筛、中国剩余定理与 RSA。",
+ "icon": "🔢",
+ "sections": [
+  {
+   "id": "11-1",
+   "title": "扩展欧几里得",
+   "keywords": [
+    "扩展欧几里得",
+    "裴蜀定理",
+    "模逆元",
+    "线性同余",
+    "整数解"
+   ],
+   "desc": "用扩展欧几里得算法求解 ax+by=gcd(a,b) 的一组整数解, 并借此计算模逆元。",
+   "theory": "## 裴蜀定理\n\n对任意整数 a、b, 存在整数 x、y 使 **ax + by = gcd(a, b)**, 且 gcd(a, b) 是 a、b 的整数线性组合中最小正整数。求这样的 (x, y) 就是**扩展欧几里得算法**的任务——它是数论与密码学的基石(模逆元、中国剩余定理、RSA 都依赖它)。\n\n## 算法(递归回溯)\n\n在欧几里得算法 gcd(a, b) = gcd(b, a mod b) 的递归回溯过程中带回系数:\n\n```text\nexgcd(a, b):\n    若 b = 0: 返回 (gcd=a, x=1, y=0)\n    (g, x', y') = exgcd(b, a mod b)\n    x = y';  y = x' - ⌊a/b⌋·y'\n    返回 (g, x, y)\n```\n\n推导: 由 a mod b = a − ⌊a/b⌋·b, 若 bx′ + (a mod b)y′ = gcd(b, a mod b), 代入得 a·y′ + b·(x′ − ⌊a/b⌋·y′) = gcd(a, b), 故 x = y′, y = x′ − ⌊a/b⌋·y′。迭代实现(辗转相除逆推)同样常见。注意 x、y 通常一正一负。\n\n## 模逆元\n\na 在模 m 下的逆元是整数 a⁻¹ 使 a·a⁻¹ ≡ 1 (mod m)。**存在当且仅当 gcd(a, m) = 1**。求法: 解 ax + my = 1, 则 x mod m 即逆元(为负则加 m 转正)。当 gcd(a, m) > 1 时无逆元: a 的任何倍数模 m 都含公因子, 不可能 ≡ 1。\n\n## 复杂度与易错点\n\n每次递归规模减半, **O(log min(a, b))** 次运算, 系数用 long long(中间值可达乘积量级)。易错点: ① 系数可为负, 取逆元时务必 (x % m + m) % m; ② 无逆元的判定是 gcd ≠ 1; ③ 递归参数顺序是 (b, a mod b), 别写反。",
+   "keyPoints": [
+    "裴蜀定理: ax+by=gcd(a,b) 存在整数解, 扩展欧几里得求出其一",
+    "回溯公式: x=y′, y=x′−(⌊a/b⌋)y′; 基础情形 b=0 时 (x,y)=(1,0)",
+    "模逆元存在当且仅当 gcd(a,m)=1; 解 ax+my=1 后取 x mod m",
+    "系数可为负, 逆元须转非负: (x%m+m)%m",
+    "复杂度 O(log min(a,b)), 系数用 long long 防溢出"
+   ],
+   "codes": [
+    {
+     "lang": "c",
+     "name": "扩展欧几里得与模逆元",
+     "desc": "输入 a m, 输出 gcd(a,m)、系数 x y 与 a 模 m 的逆元(存在时)。示例: 输入 17 43 → gcd=1, 17×(−5)+43×2=1, 逆元 38",
+     "code": "#include <stdio.h>\n\n/* 扩展欧几里得: 求 ax + by = gcd(a, b) 的一组整数解, 并用它计算模逆元\n   输入: a m\n   输出: gcd(a,m)、系数 x y, 以及 a 模 m 的逆元(存在时)\n   示例: 17 43 -> gcd=1, 17*(-5)+43*2=1, 逆元 = 38 */\nlong long exgcd(long long a, long long b, long long *x, long long *y) {\n    if (b == 0) { *x = 1; *y = 0; return a; }   /* 基础情形: gcd(a,0)=a */\n    long long x1, y1;\n    long long g = exgcd(b, a % b, &x1, &y1);\n    *x = y1;                                    /* 回溯: x = y' */\n    *y = x1 - (a / b) * y1;                     /* y = x' - (a/b)*y' */\n    return g;\n}\n\nint main(void) {\n    long long a, m, x, y;\n    printf(\"输入 a m: \");\n    if (scanf(\"%lld %lld\", &a, &m) != 2 || a < 0 || m <= 0) {\n        printf(\"输入无效!\\n\"); return 1;\n    }\n    long long g = exgcd(a, m, &x, &y);\n    printf(\"gcd(%lld, %lld) = %lld\\n\", a, m, g);\n    printf(\"%lld * %lld + %lld * %lld = %lld\\n\", a, x, m, y, g);\n    if (g == 1) {\n        long long inv = (x % m + m) % m;        /* 逆元须为非负 */\n        printf(\"%lld 模 %lld 的逆元 = %lld (验证 %lld*%lld mod %lld = 1)\\n\",\n               a, m, inv, a, inv, m);\n    } else {\n        printf(\"%lld 模 %lld 不存在逆元 (gcd != 1)\\n\", a, m);\n    }\n    return 0;\n}\n"
+    },
+    {
+     "lang": "python",
+     "name": "扩展欧几里得与模逆元",
+     "desc": "输入 a m, 输出 gcd(a,m)、系数 x y 与 a 模 m 的逆元(存在时)。示例: 输入 17 43 → gcd=1, 17×(−5)+43×2=1, 逆元 38",
+     "code": "# 扩展欧几里得: 求 ax + by = gcd(a, b) 的一组整数解, 并计算模逆元\nimport sys\n\ndef exgcd(a, b):\n    if b == 0:\n        return a, 1, 0\n    g, x1, y1 = exgcd(b, a % b)\n    return g, y1, x1 - (a // b) * y1    # 回溯: x = y', y = x' - (a//b)*y'\n\na, m = map(int, sys.stdin.read().split())\ng, x, y = exgcd(a, m)\nprint(f\"gcd({a}, {m}) = {g}\")\nprint(f\"{a} * {x} + {m} * {y} = {g}\")\nif g == 1:\n    inv = (x % m + m) % m               # 逆元须为非负\n    print(f\"{a} 模 {m} 的逆元 = {inv} (验证 {a}*{inv} mod {m} = 1)\")\nelse:\n    print(f\"{a} 模 {m} 不存在逆元 (gcd != 1)\")\n"
+    }
+   ],
+   "exercises": [
+    {
+     "diff": 3,
+     "q": "(a) 用扩展欧几里得求 gcd(240, 46) 及整数 x、y 使 240x + 46y = gcd(240, 46), 写出回代过程并验证;\n(b) 求 17 在模 43 下的逆元并验证。",
+     "hint": "欧几里得除法序列: 240 = 5·46 + 10, 46 = 4·10 + 6, 10 = 1·6 + 4, 6 = 1·4 + 2, 4 = 2·2 + 0; 从最后一步把 2 逐步回代; 逆元即 (x mod 43 + 43) mod 43。",
+     "ans": "(a) 除法序列: 240 = 5·46 + 10; 46 = 4·10 + 6; 10 = 1·6 + 4; 6 = 1·4 + 2; 4 = 2·2 + 0。回代: 2 = 6 − 4 = 6 − (10 − 6) = 2·6 − 10 = 2·(46 − 4·10) − 10 = 2·46 − 9·10 = 2·46 − 9·(240 − 5·46) = 47·46 − 9·240。故 gcd = 2, x = −9, y = 47, 验证: 240·(−9) + 46·47 = −2160 + 2162 = 2 ✓。\n(b) 43 = 2·17 + 9; 17 = 1·9 + 8; 9 = 1·8 + 1。回代: 1 = 9 − 8 = 9 − (17 − 9) = 2·9 − 17 = 2·(43 − 2·17) − 17 = 2·43 − 5·17。故 17·(−5) ≡ 1 (mod 43), 逆元 = (−5 mod 43) = **38**; 验证 17·38 = 646 = 15·43 + 1 ✓。"
+    },
+    {
+     "diff": 4,
+     "q": "用归纳法完整证明扩展欧几里得算法的正确性: (a) 递归必然终止且返回 gcd(a, b); (b) 返回的 (x, y) 满足 ax + by = gcd(a, b); (c) 证明 a 模 m 存在逆元当且仅当 gcd(a, m) = 1。",
+     "hint": "(a)(b) 都对第二个参数 b 归纳, 基础情形 b = 0; 归纳步利用 a mod b = a − ⌊a/b⌋b 推导系数;(c) 必要性: 若 a·a⁻¹ − m·k = 1, 则 gcd(a,m) 整除 1; 充分性用裴蜀定理。",
+     "ans": "(a) **终止**: 对 b 归纳。b = 0 时直接返回; 否则递归参数为 (b, a mod b), 而 a mod b < b, 第二个参数严格递减, 必然终止。**返回值**: b = 0 时返回 a = gcd(a, 0) ✓; 由 gcd(a, b) = gcd(b, a mod b), 归纳假设递归调用返回 gcd(b, a mod b), 即 gcd(a, b) ✓。\n(b) b = 0 时 x = 1, y = 0, a·1 + 0·0 = a = gcd ✓。设递归调用返回 (x′, y′) 满足 bx′ + (a mod b)y′ = gcd(b, a mod b)。由 a mod b = a − ⌊a/b⌋b: gcd = bx′ + (a − ⌊a/b⌋b)y′ = a·y′ + b·(x′ − ⌊a/b⌋y′)。算法令 x = y′, y = x′ − ⌊a/b⌋y′, 故 ax + by = gcd ✓。\n(c) **必要性**: 若存在 a⁻¹, 则 a·a⁻¹ ≡ 1 (mod m), 即 a·a⁻¹ − m·k = 1; gcd(a, m) 整除左端每一项, 故整除 1, gcd(a, m) = 1。**充分性**: gcd(a, m) = 1 时由 (b) 存在 x, y 使 ax + my = 1, 即 ax ≡ 1 (mod m), x mod m 就是逆元。\n**复杂度**: O(log min(a, m)) 次递归。"
+    },
+    {
+     "diff": 4,
+     "q": "解线性同余方程 ax ≡ b (mod m): 给出有解条件、模 m 意义下的解的个数、完整求解算法(用扩展欧几里得), 并给出关键代码。",
+     "hint": "令 g = gcd(a, m): 有解当且仅当 g 整除 b; 有解时先约简 a′ = a/g, b′ = b/g, m′ = m/g, 此时 a′ 在模 m′ 下可逆, 求出 x₀ 后通解为 x₀ + m′·t。",
+     "ans": "**有解条件**: 令 g = gcd(a, m), 方程有解当且仅当 **g | b**。必要性: ax − b = m·k, 故 b = ax − mk 被 g 整除; 充分性见下。\n**算法**: ① 若 b mod g ≠ 0 无解; ② 令 a′ = a/g, b′ = b/g, m′ = m/g, 方程等价于 a′x ≡ b′ (mod m′), 且 gcd(a′, m′) = 1; ③ 用扩展欧几里得求 a′ 模 m′ 的逆元 inv, 得 x₀ = b′·inv mod m′; ④ 通解 x ≡ x₀ (mod m′), 展开为模 m 意义下的 **g 个**解: x₀, x₀+m′, …, x₀+(g−1)m′。\n**关键代码**:\n```text\ng = exgcd(a, m) 的 gcd\nif b % g != 0: 无解\na1, b1, m1 = a//g, b//g, m//g\ninv = a1 模 m1 的逆元\nt = b1 * inv % m1\nfor i in range(g): 输出 (t + i*m1) % m\n```\n**复杂度**: O(log m)(一次扩展欧几里得)。"
+    }
+   ]
+  },
+  {
+   "id": "11-2",
+   "title": "快速幂与模运算",
+   "keywords": [
+    "快速幂",
+    "二进制幂",
+    "模运算",
+    "矩阵快速幂",
+    "斐波那契"
+   ],
+   "desc": "二进制快速幂 O(log n) 计算 aⁿ mod m、模运算性质, 以及矩阵快速幂加速斐波那契。",
+   "theory": "## 模运算性质\n\n对模 m: (a + b) mod m = (a mod m + b mod m) mod m, 乘法同理, 幂次可逐次取模。这些性质使「先取模再运算」合法, 是防止溢出的基本手段; C 中 (a·b) mod m 若先算 a·b 可能溢出 long long, 大模数需用快速乘(见本节练习 3)。\n\n## 快速幂(二进制幂)\n\n计算 aⁿ mod m, 朴素连乘 O(n)。快速幂把 n 写成二进制: 只需算 a, a², a⁴, …(每步平方, 共 O(log n) 个), 再按 n 的二进制位把对应项乘起来:\n\n```text\nres = 1;  base = a mod m\nwhile n > 0:\n    if n 末位为 1:  res = res * base mod m\n    base = base * base mod m\n    n >>= 1\n```\n\n复杂度 **O(log n)** 次乘法。当 n 极大(如 RSA 中 2048 位指数)时, 这是唯一可行方案。\n\n## 矩阵快速幂(以斐波那契为例)\n\n常系数线性递推可写成矩阵形式: [F~n~, F~n−1~]ᵀ = M·[F~n−1~, F~n−2~]ᵀ, 其中 M = [[1, 1], [1, 0]]。迭代得 [F~n~, F~n−1~]ᵀ = M^(n−1)·[F~1~, F~0~]ᵀ。矩阵幂用与标量相同的二进制分解: O(log n) 次 2×2 矩阵乘法(常数次标量乘)。于是斐波那契从 O(n) 迭代降到 **O(log n)**, 直接算 F~10^18~ 也不在话下。凡满足常系数齐次线性递推的序列(线性递推数列、路径计数等)都可如法炮制。\n\n## 易错点\n\n① n = 0 时 a⁰ = 1 (mod m), 用 res = 1 % m 初始化; ② m = 1 时任何数模 1 为 0; ③ C 中 base·base 可能溢出 long long, 必要时用快速乘; ④ 矩阵幂初始化为单位阵。",
+   "keyPoints": [
+    "模运算性质: 先取模再运算合法, 防止溢出",
+    "二进制幂: 按 n 的二进制位乘入对应 base, O(log n) 次乘法",
+    "矩阵快速幂: 常系数线性递推写为矩阵幂, 斐波那契 O(log n)",
+    "n=0 时 a^0=1 mod m, 用 res=1%m 初始化; m=1 时结果为 0",
+    "C 中乘积可能溢出 long long, 必要时用快速乘"
+   ],
+   "codes": [
+    {
+     "lang": "c",
+     "name": "快速幂(二进制幂)",
+     "desc": "输入 a n m, 输出 a^n mod m。示例: 输入 3 50 7 → 2",
+     "code": "#include <stdio.h>\n\n/* 快速幂(二进制幂): O(log n) 次乘法计算 a^n mod m\n   输入: a n m\n   输出: a^n mod m\n   示例: 3 50 7 -> 2 (因 3^6 ≡ 1 mod 7, 3^50 ≡ 3^2 = 9 ≡ 2) */\nlong long modpow(long long a, long long n, long long m) {\n    long long res = 1 % m;              /* n = 0 时返回 1 mod m */\n    a %= m;\n    while (n > 0) {\n        if (n & 1) res = res * a % m;   /* 二进制位为 1: 乘入当前 base */\n        a = a * a % m;                  /* base 逐位平方 */\n        n >>= 1;\n    }\n    return res;\n}\n\nint main(void) {\n    long long a, n, m;\n    printf(\"输入 a n m (计算 a^n mod m): \");\n    if (scanf(\"%lld %lld %lld\", &a, &n, &m) != 3 || m <= 0) {\n        printf(\"输入无效!\\n\"); return 1;\n    }\n    printf(\"%lld^%lld mod %lld = %lld\\n\", a, n, m, modpow(a, n, m));\n    return 0;\n}\n"
+    },
+    {
+     "lang": "python",
+     "name": "快速幂 + 矩阵快速幂(斐波那契)",
+     "desc": "输入 a n m, 输出 a^n mod m 与 F(n) mod m(矩阵快速幂)。示例: 输入 3 50 7 → 3^50 mod 7 = 2, F(50) mod 7 = 1",
+     "code": "# 快速幂与矩阵快速幂: a^n mod m 与斐波那契 F(n) mod m, 均 O(log n)\nimport sys\n\ndef modpow(a, n, m):\n    res = 1 % m\n    a %= m\n    while n > 0:\n        if n & 1:\n            res = res * a % m\n        a = a * a % m\n        n >>= 1\n    return res\n\ndef mat_mul(A, B, m):\n    # 2x2 矩阵乘法(逐项取模)\n    return [[(A[0][0] * B[0][0] + A[0][1] * B[1][0]) % m,\n             (A[0][0] * B[0][1] + A[0][1] * B[1][1]) % m],\n            [(A[1][0] * B[0][0] + A[1][1] * B[1][0]) % m,\n             (A[1][0] * B[0][1] + A[1][1] * B[1][1]) % m]]\n\ndef mat_pow(M, k, m):\n    R = [[1, 0], [0, 1]]                # 结果初始化为单位阵\n    while k > 0:\n        if k & 1:\n            R = mat_mul(R, M, m)\n        M = mat_mul(M, M, m)\n        k >>= 1\n    return R\n\ndef fib(n, m):\n    # [F(n); F(n-1)] = M^(n-1) * [F(1); F(0)],  M = [[1,1],[1,0]]\n    if n == 0:\n        return 0\n    R = mat_pow([[1, 1], [1, 0]], n - 1, m)\n    return (R[0][0] * 1 + R[0][1] * 0) % m   # F(1)=1, F(0)=0\n\na, n, m = map(int, sys.stdin.read().split())\nprint(f\"{a}^{n} mod {m} = {modpow(a, n, m)}\")\nprint(f\"F({n}) mod {m} = {fib(n, m)}  (矩阵快速幂)\")\n"
+    }
+   ],
+   "exercises": [
+    {
+     "diff": 3,
+     "q": "用二进制快速幂计算 3^50 mod 7, 写出每一步 base、n 与 res 的变化; 再用费马小定理验证结果。",
+     "hint": "50 的二进制是 110010₂ = 32+16+2; 按「末位为 1 则乘入 res, base 平方, n 右移」逐轮执行; 验证用 3⁶ ≡ 1 (mod 7) 与 50 = 6·8 + 2。",
+     "ans": "初始化 res = 1, base = 3, n = 50。\n- n=50(末位 0): base = 3² = 9 ≡ 2, n = 25;\n- n=25(末位 1): res = 1·2 = 2, base = 2² = 4, n = 12;\n- n=12(末位 0): base = 4² = 16 ≡ 2, n = 6;\n- n=6(末位 0): base = 2² = 4, n = 3;\n- n=3(末位 1): res = 2·4 = 8 ≡ 1, base = 4² = 16 ≡ 2, n = 1;\n- n=1(末位 1): res = 1·2 = 2, base = 4, n = 0。\n结果 3^50 ≡ **2** (mod 7)。**验证**: 费马小定理 3⁶ ≡ 1 (mod 7), 50 = 6·8 + 2, 3^50 ≡ (3⁶)⁸·3² ≡ 1·9 ≡ 2 ✓。"
+    },
+    {
+     "diff": 4,
+     "q": "证明矩阵恒等式 Mⁿ = [[F~n+1~, F~n~], [F~n~, F~n−1~]], 其中 M = [[1,1],[1,0]], F₀ = 0, F₁ = 1; 由此设计 O(log n) 求 F~n~ 的算法, 并讨论 n 达到 10^18 时与迭代法的复杂度差距。",
+     "hint": "对 n 归纳: 验证 n = 1, 归纳步把 M^(n+1) = Mⁿ·M 展开并利用 F~n+2~ = F~n+1~ + F~n~; 算法即对 n−1 做二进制分解的矩阵幂。",
+     "ans": "**归纳证明**: n = 1 时 M¹ = [[1,1],[1,0]] = [[F₂, F₁], [F₁, F₀]] ✓。设 Mⁿ = [[F~n+1~, F~n~], [F~n~, F~n−1~]], 则 M^(n+1) = Mⁿ·M = [[F~n+1~+F~n~, F~n+1~], [F~n~+F~n−1~, F~n~]] = [[F~n+2~, F~n+1~], [F~n+1~, F~n~]] ✓。\n**算法**: [F~n~, F~n−1~]ᵀ = M^(n−1)·[F₁, F₀]ᵀ; 对 n−1 做二进制分解, 矩阵乘法每次 8 次标量乘, 共 O(log n) 次矩阵乘法, 即 **O(log n)** 时间、O(1) 空间。\n**对比**: 迭代法 O(n); n = 10^18 时迭代需 10^18 步(不可行), 而矩阵快速幂仅需约 60 次矩阵乘法。注意 F~n~ 指数增长, 实际常输出 F~n~ mod m。"
+    },
+    {
+     "diff": 5,
+     "q": "大模数快速乘: 当模数 m 接近 10^18 时, C 语言中 (a·b) mod m 的中间乘积 a·b 会溢出 64 位整数。设计只用加法与位运算的 O(log b) 算法计算 a·b mod m(俄罗斯农夫乘法), 证明其正确性, 并说明中间量为什么不会溢出。",
+     "hint": "与快速幂对偶: 把 b 写成二进制, 每轮若 b 末位为 1 就把当前 a 累加进 res, 然后 a 翻倍、b 减半, 全程对 m 取模; 用不变式「res + a·(b 剩余值) ≡ a₀·b₀ (mod m)」归纳。",
+     "ans": "**算法**: res = 0; while b > 0: 若 b 为奇数, res = (res + a) % m; a = (2a) % m; b >>= 1。\n**正确性(不变式归纳)**: 设初始 a₀、b₀。不变式: 每轮开始时 res + a·b ≡ a₀·b₀ (mod m)。初始 res = 0, a = a₀, b = b₀ 成立。若 b 为奇数, 分离最低位: res′ = res + a, a′ = 2a, b′ = (b−1)/2, 则 res′ + a′·b′ = res + a + 2a·(b−1)/2 = res + a·b ✓; 若 b 为偶数, a′ = 2a, b′ = b/2, res′ + a′b′ = res + a·b ✓。终止时 b = 0, res ≡ a₀b₀ (mod m)。\n**不溢出**: 每轮中间量 res + a ≤ 2(m−1) 与 2a ≤ 2(m−1); 当 m ≤ 4.6×10^18(即 m ≤ 2^62)时, 2(m−1) < 2^63, 64 位有符号整数足够。\n**复杂度**: O(log b) 次加法取模, 是 RSA 大数运算、大素数哈希等场景的基本组件。"
+    }
+   ]
+  },
+  {
+   "id": "11-3",
+   "title": "素数筛",
+   "keywords": [
+    "埃氏筛",
+    "线性筛",
+    "欧拉筛",
+    "区间素数",
+    "素数判定"
+   ],
+   "desc": "埃氏筛 O(n log log n) 与欧拉筛(线性筛) O(n) 的原理与实现, 以及区间素数等筛法应用。",
+   "theory": "## 素性判定回顾\n\n单个整数 n 的素性可用试除法 O(√n) 判定(只需试除到 √n)。但求 [2, n] 内全部素数时, 逐个数试除是 O(n√n), 不可接受——**筛法**一次性解决。\n\n## 埃氏筛(Sieve of Eratosthenes), O(n log log n)\n\n维护布尔数组 isPrime, 初始全真。从 2 开始: 若 isPrime[p] 为真(素数), 把 p 的所有倍数标记为合数, 从 **p²** 开始(小于 p² 的倍数已被更小的素因子标记)。只筛到 p ≤ √n。总标记次数 ≈ Σ~p≤n~ n/p ≈ n·ln ln n, 即 **O(n log log n)**, 空间 O(n)。\n\n## 欧拉筛(线性筛), O(n)\n\n埃氏筛中每个合数可能被多个质因子重复标记(如 12 被 2、3 各标一次)。线性筛保证**每个合数只被其最小质因子标记一次**:\n\n```text\nfor i = 2..n:\n    若 i 未被标记: 加入素数表\n    for 素数表中每个 p (按升序):\n        标记 i·p 为合数\n        若 i mod p == 0: break      # 关键: 保证只被最小质因子标记\n```\n\n当 i mod p == 0 时, i 已有质因子 p, 再乘更大的素数得到的合数最小质因子仍是 p, 会由更小的 i′ 标记——故立即 break。每个合数恰好被标记一次, 总时间 **O(n)**, 且顺带得到每个数的最小质因子。\n\n## 筛法的应用\n\n- **区间素数 [L, R]**: 先筛 √R 内素数, 再用它们标记 [L, R] 内的合数, 复杂度 O(√R + (R−L)·log log R), 可处理 L 达 10^9 的大区间(偏移下标);\n- **质因数分解**: 线性筛预处理 minPrime 数组, 对任意 x 反复除以最小质因子, O(质因子个数) 完成分解;\n- 欧拉函数、莫比乌斯函数、约数个数等积性函数均可在线性筛中一并计算。\n\n## 易错点\n\n① 埃氏筛内层从 p·p 开始且只需到 √n; ② 线性筛的 break 条件是 O(n) 的关键, 漏掉就退化为埃氏筛; ③ 大区间筛时用偏移下标 x − L, 别真开 10^9 大小的数组。",
+   "keyPoints": [
+    "埃氏筛: 从 p² 开始标记 p 的倍数, 只筛到 √n, O(n log log n)",
+    "线性筛: 每个合数只被其最小质因子标记一次, O(n)",
+    "线性筛关键: i 能被当前素数整除时立即 break",
+    "区间素数: 筛 √R 内素数再标记 [L,R], 偏移下标省空间",
+    "线性筛可顺带得到每个数的最小质因子, 用于快速分解"
+   ],
+   "codes": [
+    {
+     "lang": "c",
+     "name": "埃氏筛 + 线性筛 + 区间素数",
+     "desc": "输入 n L R, 输出 [2,n] 内素数个数(两种筛法)与 [L,R] 内素数。示例: 输入 1000000 100 200 → 埃氏 78498 / 线性 78498 / 区间 21 个",
+     "code": "#include <stdio.h>\n#include <string.h>\n#include <stdbool.h>\n#include <math.h>\n\n/* 素数筛综合演示: 埃氏筛 O(n log log n)、线性筛 O(n)、区间素数筛 [L, R]\n   输入: n L R  (2 <= n <= 10^7; 1 <= L <= R <= 10^12, R-L <= 10^6)\n   输出: [2,n] 内素数个数(两种筛法), [L,R] 内素数个数与前 40 个 */\n#define MAXN 10000001\n#define MAXP 800000\nstatic bool comp[MAXN];                  /* 合数标记 */\nstatic int primes[MAXP], pcnt;\n\nstatic int eratosthenes(int n, int *out) {   /* 返回素数个数, 素数写入 out */\n    memset(comp, 0, sizeof(comp));\n    int cnt = 0;\n    for (int p = 2; p <= n; p++) {\n        if (!comp[p]) {\n            if (out) out[cnt] = p;\n            cnt++;\n            if ((long long)p * p <= n)               /* 从 p^2 开始标记 */\n                for (long long j = (long long)p * p; j <= n; j += p)\n                    comp[j] = true;\n        }\n    }\n    return cnt;\n}\n\nstatic int linear_sieve(int n) {                     /* 每个合数只被最小质因子标记 */\n    memset(comp, 0, sizeof(comp));\n    pcnt = 0;\n    for (int i = 2; i <= n; i++) {\n        if (!comp[i]) primes[pcnt++] = i;\n        for (int j = 0; j < pcnt; j++) {\n            long long x = (long long)i * primes[j];\n            if (x > n) break;\n            comp[x] = true;\n            if (i % primes[j] == 0) break;           /* 关键: 保证最小质因子 */\n        }\n    }\n    return pcnt;\n}\n\nint main(void) {\n    long long n, L, R;\n    printf(\"输入 n L R (2<=n<=10^7, 1<=L<=R<=10^12, R-L<=10^6): \");\n    if (scanf(\"%lld %lld %lld\", &n, &L, &R) != 3 || n < 2 || n > MAXN - 1 ||\n        L < 1 || R > 1000000000000LL || R - L > 1000000) {\n        printf(\"输入无效!\\n\"); return 1;\n    }\n    printf(\"埃氏筛: [2, %lld] 素数个数 = %d\\n\", n, eratosthenes((int)n, NULL));\n    printf(\"线性筛: [2, %lld] 素数个数 = %d\\n\", n, linear_sieve((int)n));\n    /* 区间素数: 用 <= sqrt(R) 的素数标记 [L, R] 内合数 */\n    static bool bad[1000001];\n    memset(bad, 0, sizeof(bad));\n    int sq = (int)sqrt((double)R);\n    int bc = eratosthenes(sq, primes);               /* 复用 primes 存小素数 */\n    for (int i = 0; i < bc; i++) {\n        long long p = primes[i];\n        long long start = p * p;\n        long long m = ((L + p - 1) / p) * p;         /* 区间内第一个 p 的倍数 */\n        if (m > start) start = m;\n        for (long long x = start; x <= R; x += p)\n            bad[x - L] = true;                       /* 偏移下标 */\n    }\n    if (L <= 1 && R >= 1) bad[1 - L] = true;         /* 1 不是素数 */\n    int cnt3 = 0, shown = 0;\n    printf(\"[%lld, %lld] 内素数: \", L, R);\n    for (long long x = L; x <= R; x++) {\n        if (!bad[x - L]) {\n            cnt3++;\n            if (shown < 40) { printf(\"%lld \", x); shown++; }\n        }\n    }\n    if (cnt3 > 40) printf(\"... \");\n    printf(\"\\n区间素数个数 = %d\\n\", cnt3);\n    return 0;\n}\n"
+    },
+    {
+     "lang": "python",
+     "name": "埃氏筛 + 线性筛 + 区间素数",
+     "desc": "输入 n L R, 输出 [2,n] 内素数个数(两种筛法)与 [L,R] 内素数。示例: 输入 1000000 100 200 → 埃氏 78498 / 线性 78498 / 区间 21 个",
+     "code": "# 素数筛综合演示: 埃氏筛、线性筛计数, 以及区间素数筛 [L, R]\nimport math\nimport sys\n\ndef eratosthenes(limit):\n    # 埃氏筛: 返回 [2, limit] 内素数列表\n    is_p = bytearray(b\"\\x01\") * (limit + 1)\n    if limit >= 0:\n        is_p[0] = 0\n    if limit >= 1:\n        is_p[1] = 0\n    for i in range(2, int(math.isqrt(limit)) + 1):\n        if is_p[i]:\n            # 从 i^2 开始标记 i 的倍数\n            is_p[i * i: limit + 1: i] = b\"\\x00\" * ((limit - i * i) // i + 1)\n    return [i for i in range(2, limit + 1) if is_p[i]]\n\ndef linear_sieve(limit):\n    # 线性筛: 每个合数只被最小质因子标记一次, O(n)\n    comp = bytearray(limit + 1)\n    primes = []\n    for i in range(2, limit + 1):\n        if not comp[i]:\n            primes.append(i)\n        for p in primes:\n            x = i * p\n            if x > limit:\n                break\n            comp[x] = 1\n            if i % p == 0:\n                break                   # 关键: 保证最小质因子标记\n    return primes\n\ndata = list(map(int, sys.stdin.read().split()))\nn, L, R = data[0], data[1], data[2]\nprint(f\"埃氏筛: [2, {n}] 素数个数 = {len(eratosthenes(n))}\")\nprint(f\"线性筛: [2, {n}] 素数个数 = {len(linear_sieve(n))}\")\n# 区间素数: 筛 sqrt(R) 内素数, 再标记 [L, R] 内合数(偏移下标)\nbase = eratosthenes(int(math.isqrt(R)) + 1)\nbad = bytearray(R - L + 1)\nfor p in base:\n    start = max(p * p, ((L + p - 1) // p) * p)\n    for x in range(start, R + 1, p):\n        bad[x - L] = 1\nif L <= 1 <= R:\n    bad[1 - L] = 1                      # 1 不是素数\nprimes = [L + i for i in range(R - L + 1) if not bad[i]]\nprint(f\"[{L}, {R}] 内素数:\", primes[:40], (\"...\" if len(primes) > 40 else \"\"))\nprint(f\"区间素数个数 = {len(primes)}\")\n"
+    }
+   ],
+   "exercises": [
+    {
+     "diff": 3,
+     "q": "用埃氏筛求 [1, 100] 内全部素数, 写出筛的过程(至少标记到 7), 统计素数个数; 并解释: 为什么内层标记从 p² 开始, 为什么只需筛到 p ≤ √n?",
+     "hint": "从 2 开始逐个素数标记其倍数, 注意 2、3、5、7 各标记一次后停止; 合数 k·p 且 k < p 时, k 必有小于 p 的质因子; 若 n 是合数则必有不超过 √n 的质因子。",
+     "ans": "**过程**: 2 是素数, 标记 4, 6, …, 100; 3 是素数, 标记 9, 12, …, 99; 5 是素数, 标记 25, 30, …, 100; 7 是素数, 标记 49, 56, …, 98; 11 > √100 = 10, 停止。未被标记的即素数: 2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97, 共 **25** 个。\n**为什么从 p²**: p 的倍数 k·p(k < p) 必有小于 p 的质因子(因 k 的最小质因子不超过 k < p), 已在此前被标记, 无需重复。\n**为什么到 √n**: 若 n 是合数, 则 n 有质因子不超过 √n, 会被筛掉; 超过 √n 的未标记数没有更小的质因子, 必为素数。"
+    },
+    {
+     "diff": 4,
+     "q": "证明欧拉筛(线性筛)中每个合数恰好被标记一次, 从而算法总时间为 O(n); 并解释 break 条件(i 能被当前素数整除时停止)的作用。",
+     "hint": "设合数 x 的最小质因子为 p₀, 证明 x 只在 (i, p) = (x/p₀, p₀) 时被标记; 其它 (i, p) 要么在到达 p 前已 break, 要么标记的是另一个合数。",
+     "ans": "设合数 x 的最小质因子为 p₀, 记 q = x/p₀。\n**x 被标记**: 当 i = q 时, 按素数升序遍历 p: 对 p < p₀, p ∤ q(否则 p 是 x 的更小质因子), 不触发 break, 标记 i·p = q·p——这是另一个合数, 且其最小质因子恰为 p(标记合法); 到达 p = p₀ 时, p₀ | q, 标记 q·p₀ = x, 随后 break。\n**x 不被重复标记**: 若 x = i·p 且 p 是 x 的最小质因子, 则 p ≥ p₀; 当 p > p₀ 时, i = x/p 满足 p₀ | i(p₀ | x 且 p₀ ∤ p), 循环在 p 到达 p₀ 处已 break, 走不到 p; 当 p = p₀ 时 i = q, 即上述唯一标记点。\n**O(n)**: 内层循环总执行次数 = 标记次数 + break 次数 ≤ n(合数个数) + n(每轮外层至多 break 一次), 故总时间 O(n)。\n**break 的作用**: 防止「i 乘更大的素数」产生最小质因子为 p₀ 的合数被重复标记; 没有 break 时每个合数被其每个质因子各标记一次, 退化为埃氏筛的 O(n log log n)。"
+    },
+    {
+     "diff": 5,
+     "q": "区间素数计数: 给定 1 ≤ L ≤ R ≤ 10^12 且 R − L ≤ 10^6, 求 [L, R] 内素数个数。设计完整算法并分析复杂度; 说明为什么不能直接对 [1, R] 用埃氏筛; 给出关键代码。",
+     "hint": "先筛出不超过 √R 的全部素数(约 10^6 以内), 再用它们标记 [L, R] 内的合数, 用偏移下标 x − L 存储; 边界: L = 1 时 1 不是素数。",
+     "ans": "**算法**: ① 用埃氏筛求出 ≤ √R(≤ 10^6) 的全部素数 base; ② 对每个 p ∈ base, 从 start = max(p², ⌈L/p⌉·p) 开始以步长 p 标记 [L, R] 内的合数, 标记数组用偏移下标 isComp[x − L]; ③ 统计未标记个数; L = 1 时把 1 排除。\n**为什么不能直接埃氏筛**: 直接对 [1, R] 开数组需要 R 个位置(10^12), 时间 O(R log log R) 与空间 O(R) 都不可行; 区间筛只开 (R−L+1) 个位置, 用小素数表(√R 内)即可筛完区间。\n**复杂度**: 筛 base 表 O(√R log log √R); 标记总次数 ≈ (R−L)·Σ~p≤√R~ 1/p = O((R−L)·log log R); 空间 O(√R + (R−L))。\n**关键代码**:\n```text\nbase = 埃氏筛(isqrt(R))\nis_comp = [False] * (R - L + 1)\nfor p in base:\n    start = max(p*p, ((L + p - 1)//p)*p)\n    for x in range(start, R + 1, p):\n        is_comp[x - L] = True\nif L == 1: is_comp[0] = True\n答案 = 统计 is_comp 中 False 的个数\n```"
+    }
+   ]
+  },
+  {
+   "id": "11-4",
+   "title": "中国剩余定理",
+   "keywords": [
+    "中国剩余定理",
+    "同余方程组",
+    "模逆元",
+    "迭代合并",
+    "两两互素"
+   ],
+   "desc": "两两互素模数的同余方程组的构造解, 以及用扩展欧几里得迭代合并的通用解法。",
+   "theory": "## 问题\n\n求解同余方程组: x ≡ a~i~ (mod m~i~), i = 1, 2, …, k, 其中模数**两两互素**(gcd(m~i~, m~j~) = 1, i ≠ j)。\n\n## 中国剩余定理(构造解)\n\n令 M = m₁·m₂·…·m~k~, M~i~ = M/m~i~。因 gcd(M~i~, m~i~) = 1, M~i~ 在模 m~i~ 下存在逆元 t~i~(用扩展欧几里得求), 即 M~i~·t~i~ ≡ 1 (mod m~i~)。构造\n\n> **x ≡ Σ~i~ a~i~·M~i~·t~i~ (mod M)**\n\n验证: 对任意 i, 和式中除第 i 项外都含因子 m~i~(因 M~j~ 含 m~i~, j ≠ i), 故 x ≡ a~i~·M~i~·t~i~ ≡ a~i~ (mod m~i~)。**唯一性**: 若 x₁、x₂ 都是解, 则 x₁ − x₂ 被每个 m~i~ 整除, 由两两互素得被 M 整除, 故模 M 意义下解唯一。\n\n## 迭代合并(一般情形)\n\n若模数不两两互素(或想逐条处理), 可两两合并: 已知 x ≡ r (mod m), 要并入 x ≡ a (mod n)。设 x = r + m·t, 代入得 **m·t ≡ a − r (mod n)**; 令 g = gcd(m, n): 若 g 不整除 a − r 则**无解**; 否则两边除以 g 后用扩展欧几里得解 t, 得到新解 x ≡ r + m·t (mod lcm(m, n))。合并 k−1 次即得通解。\n\n## 复杂度与易错点\n\n构造法 O(k·log M)。易错点: ① 构造法要求模数两两互素, 否则必须用迭代合并并判无解; ② 逆元与结果取模后要转非负; ③ 通解是 x₀ + M·t(t 为任意整数), 求最小非负解时取 x₀ mod M。",
+   "keyPoints": [
+    "构造解: x ≡ Σ a_i·M_i·t_i (mod M), M_i = M/m_i, t_i 为 M_i 模 m_i 的逆元",
+    "要求模数两两互素; 解在模 M 意义下唯一",
+    "迭代合并: m·t ≡ a−r (mod n), g = gcd(m,n), g 不整除 a−r 则无解",
+    "合并后新模数为 lcm(m, n)",
+    "复杂度 O(k log M); 负数取模要转正"
+   ],
+   "codes": [
+    {
+     "lang": "c",
+     "name": "中国剩余定理(两两互素构造解)",
+     "desc": "输入方程个数 k 与 k 行 a m(模数两两互素), 输出 M、解 x 与逐式验证。示例: 输入 3 2 3 3 5 2 7 → x = 23 (mod 105)",
+     "code": "#include <stdio.h>\n\n/* 中国剩余定理: 两两互素模数的同余方程组, 构造解 x ≡ Σ a_i·M_i·t_i (mod M)\n   输入: k, 之后 k 行 a_i m_i (模数两两互素)\n   输出: M、解 x、逐式验证\n   示例: 3 / 2 3 / 3 5 / 2 7 -> x = 23 (mod 105) */\nlong long exgcd(long long a, long long b, long long *x, long long *y) {\n    if (b == 0) { *x = 1; *y = 0; return a; }\n    long long x1, y1, g = exgcd(b, a % b, &x1, &y1);\n    *x = y1;\n    *y = x1 - (a / b) * y1;\n    return g;\n}\n\nlong long inv_mod(long long a, long long m) {   /* 模逆元, 要求 gcd(a, m) = 1 */\n    long long x, y;\n    exgcd(a, m, &x, &y);\n    return (x % m + m) % m;\n}\n\nint main(void) {\n    int k;\n    long long a[20], m[20];\n    printf(\"输入方程个数 k: \");\n    if (scanf(\"%d\", &k) != 1 || k < 1 || k > 20) { printf(\"输入无效!\\n\"); return 1; }\n    printf(\"输入 %d 行 a_i m_i (模数两两互素):\\n\", k);\n    for (int i = 0; i < k; i++) scanf(\"%lld %lld\", &a[i], &m[i]);\n    long long M = 1;\n    for (int i = 0; i < k; i++) M *= m[i];\n    long long x = 0;\n    for (int i = 0; i < k; i++) {\n        long long Mi = M / m[i];\n        long long ti = inv_mod(Mi % m[i], m[i]);   /* M_i 模 m_i 的逆元 */\n        x = (x + (a[i] % M) * (Mi % M) % M * ti) % M;\n    }\n    printf(\"M = %lld, 解 x ≡ %lld (mod %lld)\\n\", M, x, M);\n    for (int i = 0; i < k; i++)\n        printf(\"验证: x mod %lld = %lld (期望 %lld)\\n\", m[i], x % m[i], a[i]);\n    return 0;\n}\n"
+    },
+    {
+     "lang": "python",
+     "name": "中国剩余定理(迭代合并, 模数不必互素)",
+     "desc": "输入方程个数 k 与 k 行 a m, 输出最小非负解或无解。示例: 输入 3 2 3 3 5 2 7 → x = 23 (mod 105)",
+     "code": "# 中国剩余定理: 迭代合并同余方程(模数不必两两互素), 可判定无解\nimport sys\n\ndef exgcd(a, b):\n    if b == 0:\n        return a, 1, 0\n    g, x1, y1 = exgcd(b, a % b)\n    return g, y1, x1 - (a // b) * y1\n\ndef merge(r1, m1, r2, m2):\n    # 合并 x ≡ r1 (mod m1) 与 x ≡ r2 (mod m2); 无解返回 None\n    g, x, _ = exgcd(m1, m2)\n    if (r2 - r1) % g != 0:\n        return None                     # 无解\n    m = m1 // g * m2                    # lcm(m1, m2)\n    # m1*t ≡ r2-r1 (mod m2) => t ≡ (r2-r1)/g * (m1/g)^(-1) (mod m2/g)\n    t = ((r2 - r1) // g * x) % (m2 // g)\n    return (r1 + m1 * t) % m, m\n\ndata = list(map(int, sys.stdin.read().split()))\nk = data[0]\nr, m = 0, 1\nok = True\np = 1\nfor i in range(k):\n    a, mi = data[p], data[p + 1]\n    p += 2\n    if i == 0:\n        r, m = a % mi, mi\n    else:\n        res = merge(r, m, a % mi, mi)\n        if res is None:\n            ok = False\n            break\n        r, m = res\nif not ok:\n    print(\"无解\")\nelse:\n    print(f\"最小非负解: x = {r % m} (mod {m})\")\n"
+    }
+   ],
+   "exercises": [
+    {
+     "diff": 3,
+     "q": "解方程组 x ≡ 2 (mod 3), x ≡ 3 (mod 5), x ≡ 2 (mod 7): 用中国剩余定理的构造法逐步计算 M、M~i~、t~i~ 与 x, 给出最小非负解与通解, 并逐式验证。",
+     "hint": "M = 3·5·7 = 105; M₁ = 35, M₂ = 21, M₃ = 15; 分别求它们模 3、5、7 的逆元; 代入构造公式后对 105 取模。",
+     "ans": "M = 3·5·7 = **105**。M₁ = 35 ≡ 2 (mod 3), 2 模 3 的逆元 t₁ = 2(2·2 = 4 ≡ 1); M₂ = 21 ≡ 1 (mod 5), t₂ = 1; M₃ = 15 ≡ 1 (mod 7), t₃ = 1。\nx = 2·35·2 + 3·21·1 + 2·15·1 = 140 + 63 + 30 = 233 ≡ **23** (mod 105)。\n**验证**: 23 mod 3 = 2 ✓; 23 mod 5 = 3 ✓; 23 mod 7 = 2 ✓。\n最小非负解 x = 23, 通解 x = 23 + 105t(t 为任意整数)。"
+    },
+    {
+     "diff": 4,
+     "q": "设计迭代合并算法求解一般同余方程组(模数不要求两两互素): 给出合并两个方程的完整推导、无解判定, 证明正确性, 分析复杂度, 并解实例 x ≡ 2 (mod 4), x ≡ 4 (mod 6)。",
+     "hint": "设已有解 x = r + m·t 代入第二式得 m·t ≡ a − r (mod n); 令 g = gcd(m, n), 若 g 不整除 a − r 则无解; 约简后用扩展欧几里得求 t; 注意合并后模数取 lcm。",
+     "ans": "**合并推导**: 已有 x ≡ r (mod m), 并入 x ≡ a (mod n)。令 x = r + m·t, 代入: m·t ≡ a − r (mod n)。令 g = gcd(m, n): 若 (a − r) mod g ≠ 0 则**无解**(m·t 恒被 g 整除, 而 a − r 不是); 否则两边除以 g: (m/g)·t ≡ (a−r)/g (mod n/g), 且 gcd(m/g, n/g) = 1, 求 (m/g) 模 (n/g) 的逆元 inv, 得 t₀ ≡ ((a−r)/g)·inv (mod n/g); 新解 x ≡ r + m·t₀ (mod lcm(m, n) = m·(n/g))。\n**正确性**: 构造的 x 显然满足两式; 唯一性: 若 x₁、x₂ 都满足, 则 x₁ − x₂ 被 m 与 n 整除, 故被 lcm(m, n) 整除。\n**复杂度**: 每次合并一次扩展欧几里得 O(log m), 共 k−1 次, 总 O(k·log M)。\n**实例**: 合并 (r, m) = (2, 4) 与 (a, n) = (4, 6): g = 2, (4−2) mod 2 = 0 ✓; 解 2t ≡ 1 (mod 3), 2⁻¹ mod 3 = 2, t₀ = 2; x ≡ 2 + 4·2 = 10 (mod 12)。验证: 10 mod 4 = 2 ✓, 10 mod 6 = 4 ✓。"
+    },
+    {
+     "diff": 5,
+     "q": "RSA 解密加速(CRT 应用): 已知 n = pq(p、q 为素数)与私钥 d, 密文 c。说明如何用中国剩余定理把模 n 的大指数运算 c^d mod n 拆成模 p 与模 q 的两个小指数运算再合并, 证明正确性, 并定量分析加速比(设模乘成本与模数位数的平方成正比)。",
+     "hint": "先用费马小定理把指数约简: c^d mod p = c^(d mod (p−1)) mod p; 分别算 mₚ、m_q 后用 CRT 合并; 加速比: 指数位数与模数位数都减半, 每次模乘成本为原来的 1/4。",
+     "ans": "**算法**: ① 预计算 dₚ = d mod (p−1), d_q = d mod (q−1); ② mₚ = c^dₚ mod p, m_q = c^d_q mod q; ③ 用 CRT 合并: M = pq, M₁ = q, t₁ = q⁻¹ mod p, M₂ = p, t₂ = p⁻¹ mod q, m = (mₚ·q·t₁ + m_q·p·t₂) mod n。\n**正确性**: 由费马小定理, gcd(c, p) = 1 时 c^(dₚ) ≡ c^d (mod p)(因 d ≡ dₚ (mod p−1)); c 是加密输出, 与 p 互素的概率极高(c ≡ 0 mod p 时 mₚ = 0 平凡成立)。故 mₚ = c^d mod p = m mod p, m_q = m mod q; gcd(p, q) = 1, 由中国剩余定理, 模 pq 意义下唯一解即 m = c^d mod n。\n**加速比**: 记 k = log₂ n。直接计算: 指数约 k 位, 每次模乘为 k 位乘 k 位, 成本 O(k²), 总 O(k³)。CRT 后: 两个子指数各约 k/2 位、模数各 k/2 位, 每个子幂 O((k/2)³) = O(k³/8), 共 O(k³/4), 加合并 O(k²)。总加速约 **4 倍**(工程实现因预计算与并行, 实际约 3~4 倍)。这是 RSA 软硬件实现的标准优化。"
+    }
+   ]
+  },
+  {
+   "id": "11-5",
+   "title": "RSA 公钥密码简介",
+   "keywords": [
+    "RSA",
+    "公钥密码",
+    "欧拉定理",
+    "大数分解",
+    "密钥生成",
+    "模幂"
+   ],
+   "desc": "RSA 的密钥生成、加密解密流程, 欧拉定理保证的正确性, 以及基于大整数分解困难性的安全性。",
+   "theory": "## 公钥密码思想\n\n对称密码的加解密用同一密钥, 密钥分发困难。公钥密码用一对密钥: **公钥**公开用于加密, **私钥**保密用于解密; 从公钥推导私钥在计算上不可行。RSA 是最著名的公钥密码体制。\n\n## 密钥生成\n\n1. 选两个大素数 p、q(实际应用各 1024 位以上), 计算 n = p·q;\n2. 计算欧拉函数 φ(n) = (p−1)(q−1);\n3. 选加密指数 e, 满足 e 大于 1、小于 φ(n) 且 gcd(e, φ(n)) = 1(常用 65537);\n4. 用扩展欧几里得求 d ≡ e⁻¹ (mod φ(n)), 即 ed ≡ 1 (mod φ(n))。\n\n**公钥 (e, n)**, **私钥 (d, n)**。p、q 与 φ(n) 必须销毁或保密。\n\n## 加密解密\n\n明文 m(不小于 0 且小于 n 的整数)加密: **c = m^e mod n**; 密文 c 解密: **m = c^d mod n**。实际使用中明文先经 OAEP 等填充方案处理, 再按块加密。\n\n## 正确性(欧拉定理)\n\n欧拉定理: gcd(a, n) = 1 时 a^φ(n) ≡ 1 (mod n)。由 ed = 1 + k·φ(n): c^d ≡ m^(ed) = m·(m^φ(n))^k ≡ m (mod n)。若 gcd(m, n) > 1(即 m 是 p 或 q 的倍数), 需分别用模 p、模 q 的费马小定理论证, 再由中国剩余定理合并, 结论同样成立(见本节练习 2)。\n\n## 安全性基础\n\n从公钥 (e, n) 求私钥 d 的关键是分解 n(分解 n 即得 p、q 与 φ(n)); 目前没有大整数分解的多项式时间算法, 分解 2048 位合数远超现有算力, 这是 RSA 安全性的依据。注意: 量子计算机的 Shor 算法可多项式分解, 故 RSA 面临量子威胁。\n\n## 易错点\n\n① φ(n) 必须用 (p−1)(q−1), 不是 n−1(仅当 n 为素数时 φ(n) = n−1); ② 演示用小素数, 实际 p、q 必须足够大且独立随机, 否则可被分解; ③ 明文必须小于 n; ④ e 必须与 φ(n) 互素, 否则 d 不存在。",
+   "keyPoints": [
+    "密钥生成: n=pq, φ=(p−1)(q−1), 选 e 与 φ 互素, d≡e⁻¹ (mod φ)",
+    "加密 c=m^e mod n, 解密 m=c^d mod n",
+    "正确性: 欧拉定理 m^φ(n)≡1; gcd(m,n)>1 时用费马小定理+CRT",
+    "安全性基于大整数分解困难; p,q 必须足够大且独立随机",
+    "φ 用 (p−1)(q−1) 而非 n−1; 明文必须小于 n"
+   ],
+   "codes": [
+    {
+     "lang": "c",
+     "name": "RSA 密钥生成 + 加解密演示",
+     "desc": "输入素数 p q、加密指数 e 与明文 m, 输出公钥、私钥、密文与解密结果。示例: 输入 61 53 17 65 → n=3233, d=2753, c=2790, 解密 65",
+     "code": "#include <stdio.h>\n\n/* RSA 公钥密码演示(小型素数, 仅教学): 密钥生成 + 加密 + 解密\n   输入: p q e m (素数 p q, 加密指数 e, 明文 m < p*q)\n   输出: n, phi, 私钥 d, 密文 c, 解密结果\n   示例: 61 53 17 65 -> n=3233, phi=3120, d=2753, c=2790, 解密 65\n   注意: 实际应用中 p, q 必须是 1024 位以上的大素数(如 n >= 2048 位),\n         并配合 OAEP 填充, 这里仅演示算法流程! */\nlong long exgcd(long long a, long long b, long long *x, long long *y) {\n    if (b == 0) { *x = 1; *y = 0; return a; }\n    long long x1, y1, g = exgcd(b, a % b, &x1, &y1);\n    *x = y1;\n    *y = x1 - (a / b) * y1;\n    return g;\n}\n\nlong long modpow(long long a, long long n, long long m) {   /* 快速幂 O(log n) */\n    long long res = 1 % m;\n    a %= m;\n    while (n > 0) {\n        if (n & 1) res = res * a % m;\n        a = a * a % m;\n        n >>= 1;\n    }\n    return res;\n}\n\nint main(void) {\n    long long p, q, e, m, x, y;\n    printf(\"输入素数 p q, 加密指数 e, 明文 m: \");\n    if (scanf(\"%lld %lld %lld %lld\", &p, &q, &e, &m) != 4 || p < 2 || q < 2) {\n        printf(\"输入无效!\\n\"); return 1;\n    }\n    long long n = p * q;\n    long long phi = (p - 1) * (q - 1);\n    long long g = exgcd(e, phi, &x, &y);\n    if (g != 1) {\n        printf(\"错误: gcd(e, phi) != 1, 私钥不存在, 请重选 e\\n\");\n        return 1;\n    }\n    long long d = (x % phi + phi) % phi;        /* 私钥指数 */\n    long long c = modpow(m, e, n);              /* 加密 */\n    long long mm = modpow(c, d, n);             /* 解密 */\n    printf(\"n = %lld, phi(n) = %lld\\n\", n, phi);\n    printf(\"公钥 (e, n) = (%lld, %lld)\\n\", e, n);\n    printf(\"私钥 (d, n) = (%lld, %lld)\\n\", d, n);\n    printf(\"加密: c = %lld^%lld mod %lld = %lld\\n\", m, e, n, c);\n    printf(\"解密: m = %lld^%lld mod %lld = %lld\\n\", c, d, n, mm);\n    printf(\"%s\\n\", mm == m ? \"验证通过: 解密恢复明文!\" : \"验证失败!\");\n    return 0;\n}\n"
+    },
+    {
+     "lang": "python",
+     "name": "RSA 密钥生成 + 加解密演示",
+     "desc": "输入素数 p q、加密指数 e 与明文 m, 输出公钥、私钥、密文与解密结果。示例: 输入 61 53 17 65 → n=3233, d=2753, c=2790, 解密 65",
+     "code": "# RSA 公钥密码演示(小型素数, 仅教学): 密钥生成 + 加密 + 解密\n# 注意: 实际应用中 p, q 应为 1024 位以上的大素数(如 n >= 2048 位),\n#       并配合 OAEP 填充, 这里仅演示算法流程\nimport sys\n\ndef exgcd(a, b):\n    if b == 0:\n        return a, 1, 0\n    g, x1, y1 = exgcd(b, a % b)\n    return g, y1, x1 - (a // b) * y1\n\ndef modpow(a, n, m):\n    res = 1 % m\n    a %= m\n    while n > 0:\n        if n & 1:\n            res = res * a % m\n        a = a * a % m\n        n >>= 1\n    return res\n\np, q, e, m = map(int, sys.stdin.read().split())\nn = p * q\nphi = (p - 1) * (q - 1)\ng, x, y = exgcd(e, phi)\nif g != 1:\n    print(\"错误: gcd(e, phi) != 1, 私钥不存在, 请重选 e\")\nelse:\n    d = x % phi\n    c = modpow(m, e, n)                 # 加密\n    mm = modpow(c, d, n)                # 解密\n    print(f\"n = {n}, phi(n) = {phi}\")\n    print(f\"公钥 (e, n) = ({e}, {n})\")\n    print(f\"私钥 (d, n) = ({d}, {n})\")\n    print(f\"加密: c = {m}^{e} mod {n} = {c}\")\n    print(f\"解密: m = {c}^{d} mod {n} = {mm}\")\n    print(\"验证通过: 解密恢复明文!\" if mm == m else \"验证失败!\")\n"
+    }
+   ],
+   "exercises": [
+    {
+     "diff": 4,
+     "q": "完整手算 RSA 实例: p = 61, q = 53, e = 17。\n(a) 计算 n 与 φ(n);\n(b) 用扩展欧几里得求 d = e⁻¹ (mod φ(n));\n(c) 用快速幂加密明文 m = 65(写出关键中间值), 得到密文 c;\n(d) 说明若 gcd(e, φ(n)) ≠ 1 会发生什么。",
+     "hint": "φ = 60·52 = 3120; 回代求 17 的逆元; 65^17 mod 3233 用二进制分解(17 = 16+1), 逐次平方取模; d 不存在时解密无法恢复明文。",
+     "ans": "(a) n = 61·53 = **3233**, φ(n) = 60·52 = **3120**。\n(b) 3120 = 183·17 + 9; 17 = 1·9 + 8; 9 = 1·8 + 1。回代: 1 = 9 − 8 = 9 − (17 − 9) = 2·9 − 17 = 2·(3120 − 183·17) − 17 = 2·3120 − 367·17。故 d ≡ −367 ≡ **2753** (mod 3120), 验证 17·2753 = 46801 = 15·3120 + 1 ✓。\n(c) 用二进制快速幂: 65² = 4225 ≡ 992; 65⁴ ≡ 992² = 984064 ≡ 1232 (mod 3233); 65⁸ ≡ 1232² = 1517824 ≡ 1547; 65¹⁶ ≡ 1547² = 2393209 ≡ 789; 17 = 16+1, c = 65¹⁶·65 ≡ 789·65 = 51285 ≡ **2790** (mod 3233)。\n(d) 若 gcd(e, φ) ≠ 1, e 在模 φ 下无逆元, d 不存在, 解密 c^d 无法恢复 m——密钥生成时 e 必须与 φ(n) 互素, 否则重选 e。"
+    },
+    {
+     "diff": 4,
+     "q": "严格证明 RSA 解密正确性: (a) 当 gcd(m, n) = 1 时, 用欧拉定理证明 m ≡ c^d (mod n);\n(b) 当 gcd(m, n) > 1 时(0 < m < n, m 是 p 或 q 的倍数), 证明解密仍成立(提示: 模 p、模 q 分别论证后用中国剩余定理合并)。",
+     "hint": "(a) ed = 1 + k·φ(n), c^d ≡ m^(ed) = m·(m^φ(n))^k;(b) 设 m 是 p 的倍数: 模 p 平凡, 模 q 用费马小定理与 ed ≡ 1 (mod q−1)。",
+     "ans": "(a) 由 ed ≡ 1 (mod φ(n)), 存在整数 k 使 ed = 1 + k·φ(n)。欧拉定理(m 与 n 互素): m^φ(n) ≡ 1 (mod n), 故 c^d ≡ m^(ed) = m·(m^φ(n))^k ≡ m·1 = m (mod n)。\n(b) 设 m 是 p 的倍数(另一情形对称), 因 0 < m < n, m 不会是 p、q 的公共倍数。**模 p**: m ≡ 0, c^d ≡ m^(ed) ≡ 0 ≡ m (mod p), 平凡成立。**模 q**: m 与 q 互素, 费马小定理 m^(q−1) ≡ 1 (mod q); 由 ed = 1 + k(p−1)(q−1) 得 ed ≡ 1 (mod q−1), 设 ed = 1 + k′(q−1), 则 m^(ed) ≡ m·(m^(q−1))^k′ ≡ m (mod q)。于是 c^d ≡ m (mod p) 且 c^d ≡ m (mod q); 因 gcd(p, q) = 1, 由中国剩余定理, c^d ≡ m (mod pq = n)。∎\n综上, 对一切 0 ≤ m < n 解密都恢复明文。"
+    },
+    {
+     "diff": 5,
+     "q": "共模攻击: 两个用户共享同一模数 n, 加密指数分别为 e₁、e₂, 且 gcd(e₁, e₂) = 1。同一明文 m 分别加密为 c₁ = m^e₁ mod n 与 c₂ = m^e₂ mod n。攻击者仅知 (e₁, c₁, e₂, c₂, n), 说明如何恢复明文 m: 给出数学推导、算法步骤与复杂度; 并提出防御措施。",
+     "hint": "用扩展欧几里得求 s、t 使 s·e₁ + t·e₂ = 1(s、t 一正一负); 把负指数化为逆元; m = c₁^s·c₂^t mod n 的推导只有几行; 防御: 绝不共享模数, 使用随机化填充。",
+     "ans": "**数学推导**: gcd(e₁, e₂) = 1, 用扩展欧几里得求 s、t 使 **s·e₁ + t·e₂ = 1**, s、t 一正一负。则\nm ≡ m^(s·e₁ + t·e₂) ≡ m^(s·e₁)·m^(t·e₂) ≡ c₁^s·c₂^t (mod n)。\n**算法步骤**: ① exgcd(e₁, e₂) 得 (s, t); ② 若 t < 0(或 s < 0), 用扩展欧几里得求 c₂(或 c₁)模 n 的逆元——通常 gcd(c₂, n) = 1; 若 gcd(c₂, n) ≠ 1, 则直接分解 n, 同样攻破; ③ m = c₁^s·(c₂⁻¹)^(−t) mod n(指数取正, 用快速幂)。\n**复杂度**: O(log n) 次模乘, 攻击几乎瞬间完成。\n**防御**: ① 绝不为不同用户复用同一模数 n(即使 e 不同); ② 实际系统中应 n 各异, 并采用 OAEP 等随机化填充, 使同一明文每次密文不同; ③ 参数与填充必须遵循标准(如 PKCS#1 v2.2), 小指数(如 e = 3)配合不当填充也可能被攻击。"
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,286 @@
+{
+ "id": "ch06",
+ "order": 6,
+ "title": "图算法(下): 生成树、最短路与流",
+ "subtitle": "最小生成树、Bellman-Ford、Floyd-Warshall、最大流与二分图匹配。",
+ "icon": "🗺️",
+ "sections": [
+  {
+   "id": "6-1",
+   "title": "最小生成树",
+   "keywords": [
+    "最小生成树",
+    "Kruskal",
+    "Prim",
+    "并查集",
+    "割性质",
+    "环性质",
+    "二叉堆"
+   ],
+   "desc": "割/环性质, Kruskal(并查集)O(m log m)与 Prim(二叉堆)O(m log n)两种最小生成树算法。",
+   "theory": "**问题与定义** 给定无向连通带权图 G = (V, E), 最小生成树(MST)是连接全部顶点且总权最小的无环连通子图(恰有 n − 1 条边)。应用: 通信网络布线、聚类、近似算法。\n\n## 割性质\n\n把顶点集分成两部分 S 与 V ∖ S(一个割), 横跨该割的权最小边必属于某棵 MST。证明(交换论证): 设 e 是横跨割的最小权边, 若某棵 MST T 不含 e, 则 T 中连接两侧的路径上必有一条横跨该割的边 e′, 用 e 替换 e′ 仍得生成树且权不增。该性质同时支撑 Prim 与 Kruskal 的正确性。\n\n## 环性质\n\n任意环上的最大权边不属于任何 MST(证明对称: 若 MST 含它, 删去后用环上另一条横跨相应割的边替换, 权不增)。\n\n## Kruskal 算法(边排序 + 并查集)\n\n边按权升序排列, 依次考察每条边: 若两端点不在同一连通块(并查集判定), 选入 MST 并合并; 选满 n − 1 条即停。正确性: 每条入选边都是「当前某个割」的最小横跨边, 由割性质可纳入某棵 MST; 未入选边与已选边成环, 由环性质排除。复杂度 O(m log m)(排序主导), 并查集每次近似常数。适合稀疏图。\n\n## Prim 算法(顶点扩展 + 二叉堆)\n\n从任意顶点出发, 维护已选集合 S 与 key[v] = 连接 v 与 S 的最小边权: 每步取 S 外 key 最小的顶点加入 S, 并用其出边松弛邻居的 key。二叉堆实现 O(m log n); 稠密图用朴素 O(n²) 更优。正确性: 每步加入的边横跨割 (S, V ∖ S) 且权最小, 由割性质属于某棵 MST。适合稠密图。\n\n## 次小生成树(简介)\n\n在 MST 上枚举每条非树边 e, 用 e 替换「树路径上的最大权边」, 取最小结果即次小生成树; 树路径最大值可用倍增或 O(n²) 预处理。\n\n## 易错点\n\n① 并查集需路径压缩(可加按秩合并); ② 图不连通时选中边数不足 n − 1, 需报告; ③ Prim 只在 key 严格变小时入堆, 跳过堆中过期条目; ④ 重边取最小权。\n",
+   "keyPoints": [
+    "割性质: 横跨割的最小边必在某棵 MST 中(交换论证)",
+    "环性质: 环上最大权边不在任何 MST 中",
+    "Kruskal: 边排序 + 并查集, O(m log m), 适合稀疏图",
+    "Prim: 顶点扩展 + 二叉堆, O(m log n), 稠密图用 O(n²) 朴素版",
+    "次小生成树: 非树边替换树路径最大边"
+   ],
+   "codes": [
+    {
+     "lang": "c",
+     "name": "Kruskal 最小生成树",
+     "desc": "输入 n m 与 m 条无向带权边, 输出 Kruskal 选中的边与总权值。示例: 5 7 及 0 1 2; 0 3 6; 1 2 3; 1 3 8; 1 4 5; 2 4 7; 3 4 9 → 总权值 16",
+     "code": "#include <stdio.h>\n#include <stdlib.h>\n\n#define MAXN 1000\n#define MAXM 100000\n\nstruct Edge { int u, v, w; } edges[MAXM];\nint fa[MAXN];\n\nint find(int x) {                    /* 并查集: 路径压缩, 近似 O(1) */\n    while (fa[x] != x) { fa[x] = fa[fa[x]]; x = fa[x]; }\n    return x;\n}\n\nint cmp(const void *a, const void *b) {\n    return ((struct Edge *)a)->w - ((struct Edge *)b)->w;   /* 按权升序 */\n}\n\nint main(void) {\n    int n, m, i, total = 0, cnt = 0;\n    printf(\"输入顶点数 n 边数 m: \");\n    scanf(\"%d %d\", &n, &m);\n    printf(\"输入 %d 条边 (u v w, 无向带权):\\n\", m);\n    for (i = 0; i < m; i++) scanf(\"%d %d %d\", &edges[i].u, &edges[i].v, &edges[i].w);\n\n    qsort(edges, m, sizeof(struct Edge), cmp);   /* 排序 O(m log m) */\n    for (i = 0; i < n; i++) fa[i] = i;\n\n    printf(\"\\n选中的边:\\n\");\n    for (i = 0; i < m && cnt < n - 1; i++) {\n        int ru = find(edges[i].u), rv = find(edges[i].v);\n        if (ru != rv) {                          /* 两端不同块才选, 不成环 */\n            fa[ru] = rv;                         /* 合并连通块 */\n            total += edges[i].w;\n            cnt++;\n            printf(\"(%d, %d) w=%d\\n\", edges[i].u, edges[i].v, edges[i].w);\n        }\n    }\n    if (cnt < n - 1) { printf(\"图不连通, 不存在最小生成树\\n\"); return 0; }\n    printf(\"最小生成树总权值: %d\\n\", total);\n    return 0;\n}\n"
+    },
+    {
+     "lang": "python",
+     "name": "Prim 最小生成树(二叉堆)",
+     "desc": "输入 n m 与 m 条无向带权边, 输出 Prim 生成的树总权值与边集。示例: 5 7 及 0 1 2; 0 3 6; 1 2 3; 1 3 8; 1 4 5; 2 4 7; 3 4 9 → 总权值 16",
+     "code": "# Prim 算法: 二叉堆实现 O(m log n), 每次选集合外 key 最小的顶点\nimport heapq\n\nn, m = map(int, input(\"输入顶点数 n 边数 m: \").split())\nadj = [[] for _ in range(n)]\nprint(f\"输入 {m} 条边 (u v w, 无向带权):\")\nfor _ in range(m):\n    u, v, w = map(int, input().split())\n    adj[u].append((v, w))\n    adj[v].append((u, w))\n\nINF = float(\"inf\")\nkey = [INF] * n          # key[v]: 连接 v 与已选集合的最小边权\nparent = [-1] * n\nused = [False] * n\nkey[0] = 0\npq = [(0, 0)]            # (权, 顶点)\ntotal = 0\nwhile pq:\n    w, u = heapq.heappop(pq)\n    if used[u] or w > key[u]:\n        continue         # 跳过堆中的过期条目\n    used[u] = True\n    total += w\n    for v, w2 in adj[u]:\n        if not used[v] and w2 < key[v]:\n            key[v] = w2\n            parent[v] = u\n            heapq.heappush(pq, (w2, v))\n\nif not all(used):\n    print(\"图不连通, 不存在最小生成树\")\nelse:\n    print(f\"\\n最小生成树总权值: {total}\")\n    print(\"生成树边集:\")\n    for v in range(1, n):\n        print(f\"({parent[v]}, {v}) w={key[v]}\")\n"
+    }
+   ],
+   "exercises": [
+    {
+     "diff": 3,
+     "q": "存储与算法选型: 图 A 是 n = 10⁵, m = 10⁶ 的稀疏连通带权图; 图 B 是 n = 5000 的完全带权图(每对顶点都有边)。分别推荐 Kruskal 或 Prim(指明实现方式), 给出复杂度对比与理由。",
+     "hint": "完全图的边数是多少? 分别估算 O(m log m) 与 O(n²) 的操作量级; 稀疏图下两种算法谁更划算?",
+     "ans": "图 A(稀疏, m = 10⁶): Kruskal 排序 O(m log m) ≈ 10⁶ × 20 ≈ 2×10⁷ 次比较, 并查集近线性; Prim 二叉堆 O(m log n) ≈ 10⁶ × 17 同量级, 两者皆可, 工程上 Kruskal 只需边数组 + 并查集, 实现更简单。图 B(完全图, m = n(n−1)/2 ≈ 1.25×10⁷): Kruskal 排序 ≈ 1.25×10⁷ × 24 ≈ 3×10⁸ 明显偏慢; Prim 朴素实现 O(n²) = 2.5×10⁷ 快一个数量级, 且无需堆(每轮线性扫 key 数组找最小即可)。结论: 稀疏图用 Kruskal(或堆 Prim), 稠密图用朴素 Prim O(n²)——这是「按图密度选择算法」的典型例子。两种算法都要求图连通, 输出边数不足 n − 1 时要报告无 MST。"
+    },
+    {
+     "diff": 4,
+     "q": "证明割性质与环性质, 并分别说明它们如何保证 Kruskal 与 Prim 的正确性(给出完整证明框架)。",
+     "hint": "交换论证: 假设某棵 MST 不含最小横跨边, 沿 MST 中连接割两侧的路径找可替换边; 环性质证明对称; Kruskal 的入选边横跨「当前连通块划分」的某个割, Prim 的入选边横跨 (S, V∖S)。",
+     "ans": "割性质证明: 设 e = (u, v) 是横跨割 (S, V∖S) 的权最小边, T 是任意 MST。若 e ∈ T 证毕; 否则 T 中 u 到 v 的路径必包含一条横跨该割的边 e′(路径从 S 侧出发必须经割到达 V∖S 侧), 且 w(e′) ≥ w(e)。构造 T′ = T − {e′} + {e}: 删 e′ 把 T 分成两棵子树, 加 e 重新连通, T′ 是生成树且 w(T′) = w(T) − w(e′) + w(e) ≤ w(T); 因 T 最小, 等号成立, T′ 也是 MST 且含 e。环性质证明对称: 设 e 是环 C 上最大权边, 若某 MST T 含 e, 删 e 把 T 分成两部分, C 上必有另一条横跨该划分的边 e′ 且 w(e′) ≤ w(e), 替换后权不增, 得不含 e 的 MST。Kruskal 正确性: 按权升序考察, 边 e 被选中时其端点分属两个连通块; 以这两个连通块为割, e 是当前横跨它的最小边(所有权更小的边要么已入选、要么两端已连通而不横跨该割), 由割性质存在含 e 的 MST; 结合「已选边集可扩展为某棵 MST」的归纳(剪贴论证)即得整体正确。Prim 正确性: 每步加入的边 (parent[v], v) 横跨割 (S, V∖S) 且权为 key[v] 最小, 由割性质属于某棵 MST; 对步骤归纳, Prim 全程正确。"
+    },
+    {
+     "diff": 4,
+     "q": "最小瓶颈生成树: 生成树 T 的瓶颈定义为 T 中最大边权。证明: 任何最小生成树都是最小瓶颈生成树(瓶颈最小的生成树), 但反之不成立(给出反例); 并设计求最小瓶颈生成树的算法。",
+     "hint": "取 MST 的瓶颈边 e, 删去后形成割 (S, V∖S); 任何生成树都要跨越该割; 反例: 找一个非 MST 但瓶颈与某棵 MST 相同的树(如三角形)。",
+     "ans": "证明: 设 T 是 MST, 瓶颈为 B, 对应边 e = (u, v)(权 B)。删 e 把 T 分成 S 与 V∖S; 由割性质, 横跨该割的任何边权 ≥ B(否则用更小边替换 e 得到更小生成树, 与 MST 矛盾)。任何生成树 T′ 都必须跨越割 (S, V∖S)(否则 u, v 不连通), 故 T′ 中至少一条边权 ≥ B, 瓶颈 ≥ B = T 的瓶颈。故 MST 是最小瓶颈的。反例(反之不成立): 三角形 a-b-c, w(a,b) = 1, w(b,c) = 2, w(c,a) = 2: MST 为 {a-b, b-c}(或 {a-b, c-a}), 权 3, 瓶颈 2; 树 {b-c, c-a} 权 4, 不是 MST, 但瓶颈也是 2——最小瓶颈生成树不唯一, 且「瓶颈最小」不蕴含「总权最小」。求 MBST: 把边按权排序后二分答案 W, 只保留权 ≤ W 的边, 用并查集判断是否连通全部顶点, 若连通则存在瓶颈 ≤ W 的生成树; 复杂度 O(m log m)(排序) + O(log W · m)(二分 + 并查集)。更简单: 直接跑 Kruskal 得到的 MST 就是一棵最小瓶颈生成树(由上面的定理)。"
+    }
+   ]
+  },
+  {
+   "id": "6-2",
+   "title": "单源最短路 Bellman-Ford",
+   "keywords": [
+    "Bellman-Ford",
+    "松弛",
+    "负权边",
+    "负权环",
+    "单源最短路",
+    "差分约束"
+   ],
+   "desc": "松弛操作与 V−1 轮迭代的单源最短路算法, 支持负权边并检测负权环, 复杂度 O(VE)。",
+   "theory": "**问题与背景** 单源最短路: 求源点 s 到每个顶点的最短路径(边权和最小)。Dijkstra 要求非负权; Bellman-Ford 支持**负权边**, 且能检测**负权环**。注意: 若存在从 s 可达的负权环, 最短路无定义(可沿环无限减小), 算法应报告而非输出。\n\n## 松弛操作\n\n对边 (u, v, w): 若 dist[v] > dist[u] + w, 则更新 dist[v] = dist[u] + w 并记录前驱。松弛保持性质: 任何时刻 dist[v] 不小于真实最短路长度, 一旦达到下界便不再改变(三角形不等式)。\n\n## 算法步骤\n\n> 1. 初始化 dist[s] = 0, 其余为 ∞;\n> 2. 对全部 m 条边做一轮松弛, 共重复 n − 1 轮;\n> 3. 再做一轮: 若仍有边可松弛, 则存在从 s 可达的负权环。\n\n## 为什么是 n − 1 轮\n\n无负权环时, 最短路径必为简单路径(否则删去环权不增), 至多含 n − 1 条边。用归纳证明: 第 k 轮结束后, dist[v] 恰为「至多用 k 条边」的最短路——第 k 轮松弛了所有「第 k 条边」。因此 n − 1 轮后全部收敛。\n\n## 负权环检测\n\n若第 n 轮仍能松弛, 说明存在比任何简单路径更短的路径, 必有负权环; 反之无负权环时第 n 轮不会有任何松弛。注意该检测只覆盖从 s 可达的负环; 检测全图负环可加虚拟源点(0 权边连所有顶点)再跑。\n\n## 复杂度与应用\n\n时间 O(V·E), 空间 O(V + E)。应用: 含负权边的小规模图、差分约束系统(不等式 x~j~ − x~i~ ≤ c 建边 i → j 权 c, 最短路即一组可行解)、负环检测。比 Dijkstra 慢但适用范围更广。\n\n## 易错点\n\n① 第 n 轮检测必须在 n − 1 轮之后单独做; ② ∞ 用大数时先判 dist[u] 是否为 ∞ 再相加, 防溢出; ③ 有负权环应报告「无最短路」而不是输出错误距离; ④ 一轮无松弛提前退出不影响正确性。\n",
+   "keyPoints": [
+    "松弛操作: dist[v] = min(dist[v], dist[u] + w), 保持三角形不等式",
+    "n−1 轮松弛: 第 k 轮后 dist 是至多用 k 条边的最短路(归纳)",
+    "第 n 轮仍可松弛 ⇔ 存在从 s 可达的负权环",
+    "允许负权边, O(V·E) 时间; 应用: 差分约束、负环检测",
+    "无负环时最短路径是简单路径(至多 n−1 条边)"
+   ],
+   "codes": [
+    {
+     "lang": "c",
+     "name": "Bellman-Ford 最短路与负环检测",
+     "desc": "输入 n m s 与 m 条允许负权的边, 输出 s 到各点最短路, 检测负权环。示例: 4 5 0 及 0 1 4; 0 2 5; 1 2 -3; 2 3 2; 1 3 6 → dist[2] = 1",
+     "code": "#include <stdio.h>\n#include <string.h>\n\n#define MAXN 1000\n#define MAXM 100000\n#define INF 0x3f3f3f3f\n\nint main(void) {\n    int n, m, s, i, j;\n    int u[MAXM], v[MAXM], w[MAXM];     /* 边表: Bellman-Ford 无需邻接表 */\n    int dist[MAXN], parent[MAXN];\n    int has_neg_cycle = 0;\n\n    printf(\"输入顶点数 n 边数 m 源点 s: \");\n    scanf(\"%d %d %d\", &n, &m, &s);\n    printf(\"输入 %d 条边 (u v w, 允许负权):\\n\", m);\n    for (i = 0; i < m; i++) scanf(\"%d %d %d\", &u[i], &v[i], &w[i]);\n\n    memset(dist, 0x3f, sizeof(dist));  /* 初始为无穷大 */\n    memset(parent, -1, sizeof(parent));\n    dist[s] = 0;\n\n    /* n-1 轮松弛: 第 k 轮后 dist 为至多用 k 条边的最短路 */\n    for (i = 0; i < n - 1; i++) {\n        int changed = 0;\n        for (j = 0; j < m; j++) {\n            if (dist[u[j]] != INF && (long long)dist[u[j]] + w[j] < dist[v[j]]) {\n                dist[v[j]] = dist[u[j]] + w[j];\n                parent[v[j]] = u[j];\n                changed = 1;\n            }\n        }\n        if (!changed) break;           /* 提前收敛, 可提前退出 */\n    }\n\n    /* 第 n 轮: 仍能松弛 => 存在从 s 可达的负权环 */\n    for (j = 0; j < m; j++)\n        if (dist[u[j]] != INF && (long long)dist[u[j]] + w[j] < dist[v[j]])\n            has_neg_cycle = 1;\n\n    if (has_neg_cycle) { printf(\"存在从源点可达的负权环, 无最短路\\n\"); return 0; }\n    printf(\"\\n从 %d 出发的最短路:\\n\", s);\n    for (i = 0; i < n; i++) {\n        if (dist[i] == INF) { printf(\"v%d: 不可达\\n\", i); continue; }\n        printf(\"v%d: dist = %d\\n\", i, dist[i]);\n    }\n    return 0;\n}\n"
+    },
+    {
+     "lang": "python",
+     "name": "Bellman-Ford 最短路与路径",
+     "desc": "输入 n m s 与 m 条允许负权的边, 输出最短路与路径, 检测负权环。示例: 4 5 0 及 0 1 4; 0 2 5; 1 2 -3; 2 3 2; 1 3 6 → dist[2] = 1, 路径 0->1->2",
+     "code": "# Bellman-Ford: 支持负权边的单源最短路 + 负权环检测\nINF = float(\"inf\")\n\nn, m, s = map(int, input(\"输入顶点数 n 边数 m 源点 s: \").split())\nedges = []\nprint(f\"输入 {m} 条边 (u v w, 允许负权):\")\nfor _ in range(m):\n    u, v, w = map(int, input().split())\n    edges.append((u, v, w))\n\ndist = [INF] * n\nparent = [-1] * n\ndist[s] = 0\n\nfor _ in range(n - 1):                 # n-1 轮松弛: 至多 n-1 条边的最短路\n    changed = False\n    for u, v, w in edges:\n        if dist[u] != INF and dist[v] > dist[u] + w:\n            dist[v] = dist[u] + w\n            parent[v] = u\n            changed = True\n    if not changed:\n        break\n\nhas_neg_cycle = False\nfor u, v, w in edges:                  # 第 n 轮: 检测负权环\n    if dist[u] != INF and dist[v] > dist[u] + w:\n        has_neg_cycle = True\n        break\n\nif has_neg_cycle:\n    print(\"存在从源点可达的负权环, 无最短路\")\nelse:\n    print(f\"\\n从 {s} 出发的最短路:\")\n    for v in range(n):\n        if dist[v] == INF:\n            print(f\"v{v}: 不可达\")\n            continue\n        path = []\n        cur = v\n        while cur != -1:               # 前驱回溯得到路径\n            path.append(cur)\n            cur = parent[cur]\n        print(f\"v{v}: dist = {dist[v]}, 路径: \" + \" -> \".join(map(str, reversed(path))))\n"
+    }
+   ],
+   "exercises": [
+    {
+     "diff": 3,
+     "q": "用归纳法证明: 无负权环时, Bellman-Ford 的 n − 1 轮松弛后 dist 收敛于真实最短路; 并解释第 n 轮如何检测负权环。",
+     "hint": "定义「至多用 k 条边」的最短路; 第 k 轮松弛的恰是最短路的第 k 条边; 无负环时最短路是简单路径。",
+     "ans": "引理: 第 k 轮结束后, 对所有 v, dist[v] ≤ (s 到 v 的至多 k 条边的最短路长度)。归纳: k = 0 时 dist[s] = 0, 其余为 ∞, 成立(0 条边只能到 s)。假设第 k−1 轮后成立, 第 k 轮: 对任意至多 k 条边的最短路 s = v₀ → v₁ → … → vₖ = v, 其前 k−1 条边构成的子路径至多 k−1 条边, 由归纳 dist[vₖ₋₁] 已不超过该子路径长度, 第 k 轮松弛边 (vₖ₋₁, vₖ) 后 dist[v] ≤ 子路径长 + w(vₖ₋₁, vₖ) = 整条路径长。无负权环时任何最短路可取简单路径(含环则删环不增), 简单路径至多 n − 1 条边, 故 n − 1 轮后 dist 达到真实最短路(不小于真实值由松弛的三角形不等式性质保证, 不小于与不大于合起来即相等)。负环检测: 若第 n 轮某边 (u, v) 仍可松弛, 说明存在路径比所有简单路径更短, 必含负权环; 反之无负环时第 n 轮不会有任何松弛。复杂度 O(V·E) 时间, O(V) 额外空间。"
+    },
+    {
+     "diff": 4,
+     "q": "差分约束系统: 给定 m 个不等式 xⱼ − xᵢ ≤ cₖ(1 ≤ k ≤ m), 求满足全部不等式的整数解, 或报告无解。把它建模为单源最短路问题并用 Bellman-Ford 求解, 证明建模正确性, 分析复杂度。",
+     "hint": "每个变量一个顶点; 不等式 xⱼ − xᵢ ≤ c 建有向边 i → j 权 c; 加虚拟源点连 0 权边; 最短路自动满足三角形不等式; 无解 ⇔ 负权环。",
+     "ans": "建模: 顶点 i 对应变量 xᵢ(0 ≤ i < n); 对每个不等式 xⱼ − xᵢ ≤ c 建有向边 i → j 权 c。加虚拟源点 S, 对每个 i 建 0 权边 S → i(保证所有顶点可达, 且不引入额外约束)。跑 Bellman-Ford: ① 若检测到负权环, 报告无解; ② 否则令 xᵢ = dist[i], 即一组可行解。正确性: 最短路满足三角形不等式 dist[j] ≤ dist[i] + w(i, j), 而 w(i, j) = c 恰对应原不等式, 故 xⱼ − xᵢ = dist[j] − dist[i] ≤ c, 全部约束满足; 无负权环时 Bellman-Ford 收敛, 解存在。无解 ⇔ 负权环: 若存在负权环, 环上不等式链相加得 0 ≤ 负数(例: x₁−x₂ ≤ 1, x₂−x₃ ≤ 1, x₃−x₁ ≤ −4 相加得 0 ≤ −2), 矛盾, 无解; 若不存在负权环, 上述构造给出解。复杂度: O(n·m) 时间, O(n + m) 空间。应用: 排程问题与线性约束可行性判定。"
+    },
+    {
+     "diff": 4,
+     "q": "若图中存在负权环但**不从源点 s 可达**, Bellman-Ford 的输出是否正确? 如何修改以检测全图任意位置的负权环? 给出两种方法并说明各自的复杂度。",
+     "hint": "松弛只发生在 dist 已更新(非 ∞)的边上; 不可达负环上的顶点 dist 保持 ∞; 全图检测可加虚拟源点, 或用 Floyd 的 d[i][i] < 0。",
+     "ans": "正确。Bellman-Ford 只在 dist[u] ≠ ∞ 时松弛边 (u, v); 从 s 不可达的负权环上顶点 dist 恒为 ∞, 不会被松弛, 第 n 轮检测也不会触发。因此 s 可达顶点的 dist 与「删去不可达部分」的图一致, 收敛于正确最短路; 不可达顶点保持 ∞。检测全图负权环: 方法一(虚拟源点): 加顶点 S, 对每个 i 建 0 权边 S → i, 再跑 Bellman-Ford: 所有顶点从 S 可达, 第 n 轮仍松弛当且仅当全图存在负权环; 复杂度 O(n·m) 时间, O(n) 额外空间。方法二(Floyd-Warshall): O(n³) 求全源最短路后检查是否存在 d[i][i] < 0, 稠密小图更直接。注意场景区分: 若业务只需 s 到各点最短路, 不可达负环无须报告; 若需要「全图无负环」的强保证(如差分约束全局可行), 用方法一。"
+    }
+   ]
+  },
+  {
+   "id": "6-3",
+   "title": "全源最短路 Floyd-Warshall",
+   "keywords": [
+    "Floyd-Warshall",
+    "全源最短路",
+    "动态规划",
+    "传递闭包",
+    "路径重构",
+    "负权环"
+   ],
+   "desc": "中间点递推 d^k[i][j] 的全源最短路算法, 含负权处理、传递闭包与路径重构。",
+   "theory": "**问题** 全源最短路: 求所有顶点对 (i, j) 的最短路。朴素做法是跑 n 次单源算法; Floyd-Warshall 用动态规划一遍求出全部结果, O(n³), 实现极简, 适合稠密图与 n ≤ 500 的规模。\n\n## 中间点递推\n\n设 d^k[i][j] 表示「只允许经过编号 ≤ k 的中间顶点」时 i 到 j 的最短路长度。初始 d⁰[i][j] = w(i, j)(无边为 ∞, d[i][i] = 0)。递推式:\n\n> d^k[i][j] = min(d^(k−1)[i][j], d^(k−1)[i][k] + d^(k−1)[k][j])\n\n含义是「是否经过顶点 k」。三维数组可按 k 滚动为二维原地更新: d[i][j] = min(d[i][j], d[i][k] + d[k][j])——由于第 k 轮中 d[i][k] 与 d[k][j] 的中间点至多是 k − 1, 本轮不会被再次改善, 原地更新安全。\n\n## 正确性要点\n\n对 k 归纳: 第 k 轮后 d[i][j] 恰为中间点 ≤ k 的最短路。若最短路不经过 k, 由归纳保持; 若经过 k, 则拆成 i → k 与 k → j 两段, 两段内部不再经过 k(无负权环时最短路是简单路径), 恰可由上一轮的值组合。无负权环时 d[i][i] ≥ 0; 若出现 d[i][i] < 0 即存在负权环。\n\n## 负权处理与传递闭包\n\nFloyd 允许负权边但要求无负权环; 运行后检查 d[i][i] < 0 即可检测负权环。把「加」换为逻辑或、「取小」换为逻辑与: reach[i][j] |= reach[i][k] && reach[k][j], 即 Warshall 算法, O(n³) 求出全部顶点对可达性(传递闭包)。\n\n## 路径重构\n\n维护 nxt[i][j] = i 到 j 最短路径上的下一个顶点; 初始化有边时 nxt[i][j] = j, 松弛成功时 nxt[i][j] = nxt[i][k]; 查询沿 nxt 迭代输出路径。\n\n## 易错点\n\n① 三重循环**最外层必须是 k**; ② 初始化 d[i][i] = 0、重边取最小; ③ ∞ 相加防溢出, 先判 d[i][k] 是否为 ∞; ④ n 较大时 O(n³) 不可行, 改用 n 次 Dijkstra 或 Johnson 算法。\n",
+   "keyPoints": [
+    "d^k[i][j] 只经中间点 ≤ k 的递推: min(不经过 k, 经过 k)",
+    "最外层 k 的原地更新安全: 本轮 d[i][k]/d[k][j] 不会被再次改善",
+    "允许负权边, 但 d[i][i] < 0 表示存在负权环",
+    "传递闭包: 逻辑或/与版本(Warshall), O(n³)",
+    "nxt 矩阵路径重构: 松弛成功时 nxt[i][j] = nxt[i][k]"
+   ],
+   "codes": [
+    {
+     "lang": "c",
+     "name": "Floyd-Warshall 全源最短路",
+     "desc": "输入 n m 与 m 条允许负权的边, 输出全源最短路矩阵, 检测负权环。示例: 4 5 及 0 1 1; 0 2 4; 1 2 2; 1 3 5; 2 3 1 → d[0][3] = 4",
+     "code": "#include <stdio.h>\n\n#define MAXN 500\n#define INF 0x3f3f3f3f\n\nint d[MAXN][MAXN];\n\nint main(void) {\n    int n, m, i, j, k, u, v, w;\n\n    printf(\"输入顶点数 n 边数 m: \");\n    scanf(\"%d %d\", &n, &m);\n    for (i = 0; i < n; i++)\n        for (j = 0; j < n; j++)\n            d[i][j] = (i == j) ? 0 : INF;\n\n    printf(\"输入 %d 条边 (u v w, 允许负权, 但不得有负环):\\n\", m);\n    for (i = 0; i < m; i++) {\n        scanf(\"%d %d %d\", &u, &v, &w);\n        if (w < d[u][v]) d[u][v] = w;          /* 重边取最小 */\n    }\n\n    /* 最外层 k: 依次允许顶点 0..k 作为中间点, 原地更新安全 */\n    for (k = 0; k < n; k++)\n        for (i = 0; i < n; i++) {\n            if (d[i][k] == INF) continue;\n            for (j = 0; j < n; j++)\n                if (d[k][j] != INF && d[i][j] > (long long)d[i][k] + d[k][j])\n                    d[i][j] = d[i][k] + d[k][j];\n        }\n\n    for (i = 0; i < n; i++)\n        if (d[i][i] < 0) { printf(\"存在负权环\\n\"); return 0; }\n\n    printf(\"\\n全源最短路矩阵 (INF 表示不可达):\\n\");\n    for (i = 0; i < n; i++) {\n        for (j = 0; j < n; j++) {\n            if (d[i][j] == INF) printf(\" INF \");\n            else printf(\"%4d \", d[i][j]);\n        }\n        printf(\"\\n\");\n    }\n    return 0;\n}\n"
+    },
+    {
+     "lang": "python",
+     "name": "Floyd-Warshall 最短路与路径",
+     "desc": "输入 n m 与 m 条允许负权的边, 再输入 q 对查询, 输出最短路与路径。示例: 4 5 及 0 1 1; 0 2 4; 1 2 2; 1 3 5; 2 3 1, 查询 0 3 → 最短距离 4, 路径 0->1->2->3",
+     "code": "# Floyd-Warshall: 全源最短路 + nxt 矩阵路径重构\nINF = float(\"inf\")\n\nn, m = map(int, input(\"输入顶点数 n 边数 m: \").split())\nd = [[INF] * n for _ in range(n)]\nnxt = [[-1] * n for _ in range(n)]\nfor i in range(n):\n    d[i][i] = 0\n\nprint(f\"输入 {m} 条边 (u v w, 允许负权, 但不得有负环):\")\nfor _ in range(m):\n    u, v, w = map(int, input().split())\n    if w < d[u][v]:\n        d[u][v] = w\n        nxt[u][v] = v          # 直接边: 下一个顶点即 v\n\nfor k in range(n):             # 最外层 k: 允许中间点 0..k\n    for i in range(n):\n        if d[i][k] == INF:\n            continue\n        for j in range(n):\n            if d[k][j] != INF and d[i][j] > d[i][k] + d[k][j]:\n                d[i][j] = d[i][k] + d[k][j]\n                nxt[i][j] = nxt[i][k]   # 路径经 k 中转\n\nif any(d[i][i] < 0 for i in range(n)):\n    print(\"存在负权环\")\nelse:\n    q = int(input(\"输入查询个数 q: \"))\n    print(f\"输入 {q} 对查询 (u v):\")\n    for _ in range(q):\n        u, v = map(int, input().split())\n        if d[u][v] == INF:\n            print(f\"{u} -> {v}: 不可达\")\n            continue\n        path = [u]\n        cur = u\n        while cur != v:        # 沿 nxt 迭代\n            cur = nxt[cur][v]\n            path.append(cur)\n        print(f\"{u} -> {v}: 最短距离 {d[u][v]}, 路径 {' -> '.join(map(str, path))}\")\n"
+    }
+   ],
+   "exercises": [
+    {
+     "diff": 3,
+     "q": "传递闭包: 给定 n 个顶点、m 条边的有向无权图, 设计 O(n³) 算法求出所有顶点对的可达性, 说明它与 Floyd-Warshall 的关系, 并估算 n = 500 时的基本操作量级。",
+     "hint": "把最短路递推中的「加法/取小」换成「逻辑与/逻辑或」; 中间点归纳与 Floyd 完全相同。",
+     "ans": "算法(Warshall): 初始化 reach[i][j] = 1 当且仅当 i = j 或存在边 i → j; 对 k = 0..n−1: 对每对 (i, j) 执行 reach[i][j] = reach[i][j] 或 (reach[i][k] 且 reach[k][j])。正确性: 与 Floyd 相同的中间点归纳——第 k 轮后 reach[i][j] = 1 当且仅当存在「中间顶点编号 ≤ k」的路径; 可达性不关心长度, 路径顶点可重复无妨, 故递推完备。复杂度: O(n³) 时间, O(n²) 空间; n = 500 时约 1.25×10⁸ 次布尔运算, 常数小、可运行; n = 10⁴ 时 10¹² 次不可行, 需位集加速(见本节练习 3)。Floyd 与 Warshall 是同一动态规划框架的算术版与逻辑版。"
+    },
+    {
+     "diff": 4,
+     "q": "有向图最小环: 给定带权有向图(无负权环), 求所有环中边权和最小者。设计基于 Floyd-Warshall 的算法并证明正确性, 分析复杂度。",
+     "hint": "在 Floyd 的第 k 轮、更新 d 之前, 用「k 是环上编号最大的顶点」的环: 环长候选 = w(k, i) + d^(k−1)[i][j] + w(j, k); 为什么这样不会漏掉最优环?",
+     "ans": "算法: 在 Floyd 的每轮 k 更新 d 之前, 对任意 i, j(编号小于 k): 若存在边 k → i 与 j → k, 则环长候选 = w(k, i) + d[i][j] + w(j, k), 其中 d 是第 k−1 轮后的矩阵(中间点 ≤ k−1); 取全部候选的最小值。证明(不漏最优): 任意环 C, 设其编号最大的顶点为 k, 环上其余顶点编号均小于 k。环 C 可写成 k → i → (中间点全小于 k 的路径) → j → k; 该段路径的中间点全小于 k, 故 d^(k−1)[i][j] ≤ 该段长度, 于是 k 轮时算出的候选 ≤ C 的真实环长; 且候选本身对应一个真实环(k → i 走最短路 → j → k), 故「全体候选的最小值」既是环长的上界又是下界, 恰为最小环长。每个环在「其最大顶点那一轮」被覆盖, 不重不漏。复杂度: 每轮检查 O(n²) 对 (i, j), 总 O(n³); 空间 O(n²)。无负环保证环长定义无歧义(最短段不会自绕)。"
+    },
+    {
+     "diff": 5,
+     "q": "位集加速传递闭包: 对 n = 2×10⁴ 的有向图, 朴素 Warshall 的 O(n³) 不可行。用位集(每个顶点一行 n 位的布尔向量)把算法加速到 O(n³ / 64) 数量级, 描述实现与复杂度; 若图是 DAG, 给出基于拓扑序的 O((n + m)·n / 64) 算法。",
+     "hint": "reach[i] 是一行位向量; 当 reach[i][k] = 1 时执行 reach[i] |= reach[k], 一次 OR 处理 64 位; DAG 按拓扑序倒序: 先算完后继, reach[u] = {u} ∪ ∪reach[v]。",
+     "ans": "通用算法: 用无符号 64 位整数数组表示每行的可达位向量(第 j 位表示可达 j); 三重循环改写为: for k: for i: if reach[i][k] 为真: reach[i] |= reach[k]。一次 OR 覆盖 64 位, 内层 j 循环压缩为 n/64 个字; 总操作数 n × n × n/64 = O(n³/64), n = 2×10⁴ 时约 (8×10¹²)/64 ≈ 1.25×10¹¹? 复核: n³ = 8×10¹², 除以 64 得 1.25×10¹¹ 仍偏大——应写成 n 轮 × n 行 × (n/64) 字 = n²·n/64 = 8×10¹²/64 ≈ 1.25×10¹¹ 次字操作, 在 C 语言位运算下约数秒至数十秒, 可接受; 空间 O(n²/8)。正确性同 Warshall(逐位等价)。DAG 情形: 拓扑排序后按逆序处理每个 u: reach[u] 先置为仅含 u, 再对每条出边 u → v 执行 reach[u] |= reach[v](此时 v 已处理完, 其位向量完备); 每条边一次 OR, 每个 OR 开销 O(n/64), 总 O((n + m)·n/64)。证明: 拓扑逆序保证处理 u 时所有后继 v 的 reach 已完备, 由归纳, u 的可达集 = {u} ∪ 全部后继可达集之并。这是「结构(DAG) + 位并行」两个优化的叠加, 是工程实现传递闭包的标准做法。"
+    }
+   ]
+  },
+  {
+   "id": "6-4",
+   "title": "最大流与最小割",
+   "keywords": [
+    "最大流",
+    "最小割",
+    "Ford-Fulkerson",
+    "Edmonds-Karp",
+    "Dinic",
+    "残量网络",
+    "增广路"
+   ],
+   "desc": "流网络、Ford-Fulkerson 与 Edmonds-Karp、Dinic 简述, 以及最大流最小割定理。",
+   "theory": "**流网络与最大流** 有向图 G = (V, E), 每条边 (u, v) 有容量 c(u, v) ≥ 0, 指定源点 s 与汇点 t。可行流 f 满足两条约束: ① 容量约束 0 ≤ f(u, v) ≤ c(u, v); ② 流量守恒: 除 s, t 外每个顶点流入等于流出。流的值 |f| = s 的净流出 = t 的净流入。最大流问题: 求 |f| 最大的可行流。\n\n## 残量网络与增广路\n\n对边 (u, v), 残量容量 c~f~(u, v) = c(u, v) − f(u, v), 并补充反向边 c~f~(v, u) = f(u, v)(表示可退回的流量)。残量网络中 s 到 t 的路径称增广路, 沿它推送「路径上最小残量」即可增大流值。**最大流 ⇔ 残量网络中不存在增广路**。\n\n## Ford-Fulkerson 与 Edmonds-Karp\n\nFord-Fulkerson 方法: 反复寻找 s → t 增广路并推送; 用 DFS 找路即朴素版本, 最坏可能增广 O(|f|) 次, 无多项式上界。**Edmonds-Karp** 改用 BFS 每次找边数最少的增广路, 可证明增广次数 O(V·E), 总复杂度 **O(V·E²)**: 每条边在两次成为「关键边」(残量被压满)之间, 其端点到 s 的距离严格增加, 而距离至多 V。\n\n## Dinic 算法(简述)\n\n用 BFS 建立分层图(按到 s 的距离分层), 在分层图上用 DFS 一次找出阻塞流(多条增广路), 再重建分层图; 层数至多 V, 故至多 V 个阶段, 总复杂度 O(V²·E); 单位容量图更快。Dinic 是竞赛与工程中最常用的最大流算法。\n\n## 最大流最小割定理\n\ns−t 割: 顶点集划分成 S 与 T = V ∖ S(s ∈ S, t ∈ T), 割容量为从 S 指向 T 的边容量之和。定理: **最大流值 = 最小割容量**。证明要点: 任意流的值 ≤ 任意割容量(每个单位的流从 s 到 t 必经割); Ford-Fulkerson 终止时, 残量网络中 s 可达的顶点集 S 满足: 从 S 到 T 的边残量全为 0, 该割容量恰等于当前流值, 故达到上界。\n\n## 应用与易错点\n\n应用: 二分图匹配、最小点割/边割、最大权闭合子图等, 关键在建模。易错点: ① 反向边必须成对建立(初始容量 0); ② BFS/DFS 的可用判定用残量大于 0; ③ 重边合并容量; ④ 大容量相加注意溢出。\n",
+   "keyPoints": [
+    "可行流: 容量约束 + 流量守恒; 流值 = s 的净流出",
+    "残量网络与增广路: 反向边允许退回流量; 无增广路 ⇔ 最大流",
+    "Ford-Fulkerson O(|f|·m); Edmonds-Karp BFS 找最短增广路 O(VE²)",
+    "Dinic: 分层图 + 阻塞流, O(V²E), 工程最常用",
+    "最大流最小割定理: 最大流值 = 最小割容量"
+   ],
+   "codes": [
+    {
+     "lang": "c",
+     "name": "Edmonds-Karp 最大流",
+     "desc": "输入 n m s t 与 m 条容量边, 输出最大流。示例: 4 5 0 3 及 0 1 3; 0 2 2; 1 2 1; 1 3 2; 2 3 3 → 最大流 5",
+     "code": "#include <stdio.h>\n#include <string.h>\n\n#define MAXN 500\n#define INF 0x3f3f3f3f\n\nint cap[MAXN][MAXN];       /* 容量(含反向边, 全局自动初始化为 0) */\nint n, m, s, t;\n\nint bfs_augment(void) {    /* BFS 找一条最短(边数最少)增广路, 返回增广量 */\n    static int q[MAXN], pre[MAXN], vis[MAXN];\n    int qh = 0, qt = 0, u, v;\n    memset(vis, 0, sizeof(vis));\n    vis[s] = 1; pre[s] = -1; q[qt++] = s;\n    while (qh < qt) {\n        u = q[qh++];\n        for (v = 0; v < n; v++)\n            if (!vis[v] && cap[u][v] > 0) {   /* 残量大于 0 才可走 */\n                vis[v] = 1; pre[v] = u;\n                q[qt++] = v;\n            }\n    }\n    if (!vis[t]) return 0;                  /* 无增广路, 已达最大流 */\n    int d = INF;\n    for (v = t; v != s; v = pre[v])\n        if (cap[pre[v]][v] < d) d = cap[pre[v]][v];\n    for (v = t; v != s; v = pre[v]) {\n        cap[pre[v]][v] -= d;                /* 正向残量减 */\n        cap[v][pre[v]] += d;                /* 反向残量加(可退回) */\n    }\n    return d;\n}\n\nint main(void) {\n    int u, v, c, flow = 0, d;\n    printf(\"输入顶点数 n 边数 m 源点 s 汇点 t: \");\n    scanf(\"%d %d %d %d\", &n, &m, &s, &t);\n    printf(\"输入 %d 条边 (u v c, 容量):\\n\", m);\n    for (int i = 0; i < m; i++) {\n        scanf(\"%d %d %d\", &u, &v, &c);\n        cap[u][v] += c;                     /* 重边容量合并 */\n    }\n    while ((d = bfs_augment()) > 0) flow += d;   /* 增广次数 O(V*E) */\n    printf(\"最大流: %d\\n\", flow);\n    return 0;\n}\n"
+    },
+    {
+     "lang": "python",
+     "name": "Dinic 最大流",
+     "desc": "输入 n m s t 与 m 条容量边, 输出最大流。示例: 4 5 0 3 及 0 1 3; 0 2 2; 1 2 1; 1 3 2; 2 3 3 → 最大流 5",
+     "code": "# Dinic: BFS 分层 + DFS 多路增广(阻塞流), 复杂度 O(V^2 * E)\nfrom collections import deque\nimport sys\nsys.setrecursionlimit(100000)\n\nclass Dinic:\n    def __init__(self, n):\n        self.n = n\n        self.adj = [[] for _ in range(n)]   # 边: [to, rev, cap]\n    def add_edge(self, u, v, c):\n        self.adj[u].append([v, len(self.adj[v]), c])\n        self.adj[v].append([u, len(self.adj[u]) - 1, 0])   # 反向边容量 0\n    def bfs(self, s, t):                    # 建立分层图\n        self.level = [-1] * self.n\n        self.level[s] = 0\n        q = deque([s])\n        while q:\n            u = q.popleft()\n            for to, rev, cap in self.adj[u]:\n                if cap > 0 and self.level[to] < 0:\n                    self.level[to] = self.level[u] + 1\n                    q.append(to)\n        return self.level[t] >= 0\n    def dfs(self, u, t, f):                 # 在分层图上推流(阻塞流)\n        if u == t:\n            return f\n        while self.it[u] < len(self.adj[u]):\n            to, rev, cap = self.adj[u][self.it[u]]\n            if cap > 0 and self.level[to] == self.level[u] + 1:\n                d = self.dfs(to, t, min(f, cap))\n                if d > 0:\n                    self.adj[u][self.it[u]][2] -= d   # 正向减\n                    self.adj[to][rev][2] += d         # 反向加\n                    return d\n            self.it[u] += 1                 # 此边已无潜力, 跳过\n        return 0\n    def max_flow(self, s, t):\n        flow = 0\n        while self.bfs(s, t):\n            self.it = [0] * self.n\n            while True:\n                f = self.dfs(s, t, float(\"inf\"))\n                if f == 0:\n                    break\n                flow += f\n        return flow\n\nn, m, s, t = map(int, input(\"输入顶点数 n 边数 m 源点 s 汇点 t: \").split())\ng = Dinic(n)\nprint(f\"输入 {m} 条边 (u v c, 容量):\")\nfor _ in range(m):\n    u, v, c = map(int, input().split())\n    g.add_edge(u, v, c)\nprint(\"最大流:\", g.max_flow(s, t))\n"
+    }
+   ],
+   "exercises": [
+    {
+     "diff": 3,
+     "q": "说明 Edmonds-Karp 为什么用 BFS 找最短增广路能保证多项式时间, 而朴素 Ford-Fulkerson(DFS)不能: 给出两者的最坏复杂度与论证要点。",
+     "hint": "EK 的关键引理: 每条边成为「关键边」(残量被压满)后, 其端点到 s 的 BFS 距离严格增加; 距离不超过 n, 故每条边至多关键 O(n) 次; 朴素 FF 的增广次数可达到流值量级。",
+     "ans": "EK 复杂度证明: 设 d~f~(v) 为残量网络中 s 到 v 的最短距离(边数)。引理 1: 增广过程中每个顶点的 d~f~ 单调不减。引理 2: 若边 (u, v) 在某次增广后残量为 0(成为关键边), 则它再次成为关键边之前, d~f~(u) 至少增加 2: 关键时 d~f~(v) = d~f~(u) + 1; 此后该边只能靠反向边恢复流量, 而反向流量经过时 d~f~(u) = d~f~(v) + 1 ≥ d~f~(v) + 1 = d~f~(u) + 2。因 d~f~(u) ≤ n − 1, 每条边至多关键 O(n) 次, 总增广次数 O(n·m); 每次 BFS 找路 O(m), 总 O(n·m²) = O(V·E²)。朴素 FF: 每次增广量可能只有 1, 增广次数可达最大流值 |f*|(如容量 10⁹ 的链状图), 复杂度 O(|f*|·m) 无多项式上界。结论: BFS 的「最短」性质带来距离单调性, 是多项式界的核心保证。"
+    },
+    {
+     "diff": 4,
+     "q": "证明最大流最小割定理: 对任意流网络, max|f| = min c(S, T)。要求: ① 证明任意流值 ≤ 任意割容量; ② 证明达到等号的存在性(利用 Ford-Fulkerson 终止状态构造最小割)。",
+     "hint": "① 用流量守恒把流值写成跨割的净流量, 再按容量约束放大; ② 终止时残量网络中 s 可达的顶点集 S: 从 S 到 T 的每条边残量必为 0。",
+     "ans": "① 对任意 s−t 割 (S, T) 与任意流 f: 流值 |f| 等于 S 的净流出(把 S 内各顶点的守恒方程相加, 内部边相互抵消): |f| = Σ~u∈S, v∈T~ f(u, v) − Σ~u∈S, v∈T~ f(v, u) ≤ Σ~u∈S, v∈T~ f(u, v) ≤ Σ~u∈S, v∈T~ c(u, v) = c(S, T)(第二项非负丢弃, 再按容量约束放大)。故 max|f| ≤ min c(S, T)。② Ford-Fulkerson 终止时残量网络无 s → t 路径; 令 S = 残量网络中 s 可达的顶点集, T = V ∖ S(含 t)。对任意 u ∈ S, v ∈ T: 若残量 c~f~(u, v) > 0, 则 v 可从 s 经 u 到达, 与 v ∈ T 矛盾, 故 c~f~(u, v) = 0, 即 f(u, v) = c(u, v)(正向压满)且 f(v, u) = 0; 于是 c(S, T) = Σ~u∈S, v∈T~ f(u, v) = |f|。结合 ①, 当前流值达到上界, 是最大流, 且其值 = 该割容量 = 最小割。证毕; 该证明同时给出求最小割的方法: 最大流终止后取 s 可达集即可。"
+    },
+    {
+     "diff": 5,
+     "q": "最大权闭合子图: 有 n 个项目, 项目 i 有收益 wᵢ(可正可负); 依赖关系: 若选项目 u 则必须选项目 v(共 m 条依赖 u → v)。求收益最大的「闭合」项目集合(闭合: 选了 u 必含其全部依赖)。设计算法(建模为最小割)并证明正确性, 分析复杂度。",
+     "hint": "建流网络: 源连正收益项目(容量 wᵢ), 负收益项目连汇(容量 −wᵢ), 依赖 u→v 建容量为 ∞ 的边; 最小割 (S, T) 中 S 侧的顶点集即闭合子图; 收益 = 正收益总和 − 割容量。",
+     "ans": "建模: 顶点: 源 s、汇 t、每个项目一个顶点。边: ① 收益为正: s → i, 容量 wᵢ; ② 收益为负: i → t, 容量 −wᵢ; ③ 每条依赖 u → v: 边 u → v 容量 ∞(表示「选 u 而不选 v」的代价无穷大)。对任意有限容量割 (S, T)(s ∈ S, t ∈ T), 令集合 A = S ∩ V(项目顶点中在 S 侧的): 若存在依赖 u → v 且 u ∈ A、v ∉ A, 则边 u → v 被割断, 容量为 ∞, 不可能是最优割; 故最优割对应的 A 必闭合。割容量 = Σ~wᵢ > 0, i ∉ A~ wᵢ + Σ~wᵢ < 0, i ∈ A~ (−wᵢ) = 正收益总和 − Σ~i ∈ A~ wᵢ(展开整理)。故 收益(A) = 正收益总和 − 割容量: 最大化收益 ⇔ 最小化割容量; 由最大流最小割定理, 求一次最大流即得答案与最优集合(割的 S 侧项目)。正确性: 闭合并集与割的一一对应 + 最大流最小割定理; ∞ 边保证闭合性。复杂度: 顶点 n + 2, 边 n + m, Dinic 求解为多项式时间。应用: 项目选择、依赖规划、开店决策等。"
+    }
+   ]
+  },
+  {
+   "id": "6-5",
+   "title": "二分图最大匹配",
+   "keywords": [
+    "二分图",
+    "最大匹配",
+    "增广路",
+    "匈牙利算法",
+    "König定理",
+    "最小点覆盖"
+   ],
+   "desc": "增广路思想与匈牙利算法 O(VE) 求二分图最大匹配, 及 König 定理(最大匹配=最小点覆盖)。",
+   "theory": "**二分图与匹配** 二分图 G = (X ∪ Y, E): 顶点分成两部分 X, Y, 每条边连接 X 与 Y。匹配 M 是两两不共顶点的边集; 最大匹配求 |M| 最大。应用: 任务分配(工人与工作)、排课、棋盘覆盖。\n\n## 增广路与 Berge 定理\n\n交替经过非匹配边与匹配边的路径称交替路; 两端都是未匹配顶点的交替路称**增广路**。沿增广路翻转匹配(非匹配边变匹配边, 反之亦然), 匹配大小加 1。\n\n> 定理(Berge): 匹配 M 最大 ⇔ 不存在 M 的增广路。\n\n必要性显然; 充分性: 若 M 不是最大, 取更大匹配 M*, 对称差 M ⊕ M* 的每个连通分量是交替路或偶环; 因 |M*| 大于 |M|, 必有一个分量是 M 的增广路, 矛盾。这是匈牙利算法的理论基础。\n\n## 匈牙利算法(DFS 增广)\n\n对每个 X 侧顶点 x 依次尝试匹配:\n\n> 1. 从 x 出发 DFS: 依次尝试邻居 y;\n> 2. 若 y 未匹配, 令 match[y] = x, 成功;\n> 3. 若 y 已匹配给 x′, 递归尝试给 x′ 另找新邻居(在 x′ 上继续 DFS);\n> 4. 用 vis 标记本轮已尝试的 y, 防死循环; 全部失败则 x 本轮无法匹配。\n\n每次成功即沿一条增广路翻转, 匹配数加 1; 由 Berge 定理, 无法再增广时即最大匹配。复杂度 O(V·E)(共 O(|X|) 次尝试, 每次 O(E)), V = |X| + |Y|。\n\n## König 定理(一句话)\n\n二分图中最大匹配数 = 最小点覆盖数(用最少顶点覆盖所有边); 证明借助最大流最小割或增广路构造, 是把「覆盖问题」化为「匹配问题」的桥梁。\n\n## 易错点\n\n① vis 数组每轮(每个 x)重置, 且只在 y 已匹配并递归尝试后标记; ② 递归进入的是 match[y] 对应的 X 顶点, 不要重复尝试同一 x; ③ 存 X → Y 的单向邻接表即可; ④ 注意顶点编号与两侧划分一致。\n",
+   "keyPoints": [
+    "匹配 = 两两不共顶点的边集; 增广路翻转后匹配数 +1",
+    "Berge 定理: 最大匹配 ⇔ 无增广路(对称差证明)",
+    "匈牙利算法: 每个 X 顶点 DFS 找增广路, O(V·E)",
+    "König 定理: 最大匹配 = 最小点覆盖(二分图)",
+    "应用: 任务分配、棋盘覆盖、排课"
+   ],
+   "codes": [
+    {
+     "lang": "c",
+     "name": "匈牙利算法求最大匹配",
+     "desc": "输入 n1 n2 m 与 m 条二分图边, 输出最大匹配数与匹配边。示例: 3 3 5 及 0 0; 0 1; 1 0; 1 2; 2 1 → 最大匹配 3",
+     "code": "#include <stdio.h>\n#include <string.h>\n\n#define MAXN 500\n#define MAXM 50000\n\nint head[MAXN], to[MAXM], nxt[MAXM], ecnt;   /* 邻接表: 只存 X -> Y 的边 */\nint matchY[MAXN];        /* matchY[y] = x, 表示 y 已匹配给 x */\nint vis[MAXN];           /* 本轮尝试中 y 是否已访问 */\n\nint dfs(int x) {         /* 为 x 找增广路, 成功返回 1 */\n    for (int e = head[x]; e != -1; e = nxt[e]) {\n        int y = to[e];\n        if (vis[y]) continue;                 /* 本轮已尝试, 防死循环 */\n        vis[y] = 1;\n        if (matchY[y] == -1 || dfs(matchY[y])) {\n            matchY[y] = x;                    /* 翻转增广路 */\n            return 1;\n        }\n    }\n    return 0;\n}\n\nint main(void) {\n    int n1, n2, m, i, x, y, ans = 0;\n    printf(\"输入左部顶点数 n1 右部顶点数 n2 边数 m: \");\n    scanf(\"%d %d %d\", &n1, &n2, &m);\n    memset(head, -1, sizeof(head));\n    memset(matchY, -1, sizeof(matchY));\n    printf(\"输入 %d 条边 (x y, x 属左部 0..n1-1, y 属右部 0..n2-1):\\n\", m);\n    for (i = 0; i < m; i++) {\n        scanf(\"%d %d\", &x, &y);\n        to[ecnt] = y; nxt[ecnt] = head[x]; head[x] = ecnt++;\n    }\n\n    for (x = 0; x < n1; x++) {                /* 每个左部顶点尝试匹配一次 */\n        memset(vis, 0, sizeof(vis));          /* 每轮重置访问标记 */\n        if (dfs(x)) ans++;\n    }\n\n    printf(\"最大匹配数: %d\\n\", ans);\n    printf(\"匹配边:\\n\");\n    for (y = 0; y < n2; y++)\n        if (matchY[y] != -1) printf(\"(%d, %d)\\n\", matchY[y], y);\n    return 0;\n}\n"
+    },
+    {
+     "lang": "python",
+     "name": "匈牙利算法求最大匹配",
+     "desc": "输入 n1 n2 m 与 m 条二分图边, 输出最大匹配数与匹配边。示例: 3 3 5 及 0 0; 0 1; 1 0; 1 2; 2 1 → 最大匹配 3",
+     "code": "# 匈牙利算法: 二分图最大匹配(DFS 增广), O(V*E)\nimport sys\nsys.setrecursionlimit(100000)\n\nn1, n2, m = map(int, input(\"输入左部顶点数 n1 右部顶点数 n2 边数 m: \").split())\nadj = [[] for _ in range(n1)]\nprint(f\"输入 {m} 条边 (x y, x 属左部 0..n1-1, y 属右部 0..n2-1):\")\nfor _ in range(m):\n    x, y = map(int, input().split())\n    adj[x].append(y)\n\nmatch_y = [-1] * n2          # match_y[y] = x\n\ndef dfs(x, vis):\n    for y in adj[x]:\n        if vis[y]:\n            continue\n        vis[y] = True\n        if match_y[y] == -1 or dfs(match_y[y], vis):\n            match_y[y] = x   # 翻转增广路\n            return True\n    return False\n\nans = 0\nfor x in range(n1):\n    vis = [False] * n2       # 每轮重置\n    if dfs(x, vis):\n        ans += 1\n\nprint(f\"最大匹配数: {ans}\")\nprint(\"匹配边:\")\nfor y in range(n2):\n    if match_y[y] != -1:\n        print(f\"({match_y[y]}, {y})\")\n"
+    }
+   ],
+   "exercises": [
+    {
+     "diff": 3,
+     "q": "证明 Berge 定理: 匹配 M 是最大匹配当且仅当图中不存在 M 的增广路; 并解释匈牙利算法的单次成功递归为什么恰好对应一条增广路。",
+     "hint": "必要性: 沿增广路翻转使匹配加 1; 充分性: 设 M 非最大, 取更大匹配 M*, 分析对称差 M ⊕ M* 的连通分量(交替路或偶环)。",
+     "ans": "(⇒) 若存在 M 的增广路 P, 沿 P 翻转: P 上的匹配边全部变为非匹配边、非匹配边全部变为匹配边; 因 P 两端是未匹配顶点, 翻转后仍是匹配且大小加 1, M 不是最大, 矛盾。(⇐) 反设 M 不是最大, 存在匹配 M* 且 |M*| > |M|。考虑对称差 H = M ⊕ M*: H 中每个顶点的度至多为 2(至多一条 M 边与一条 M* 边), 故 H 的每个连通分量是交替路或偶环。偶环中 M 边与 M* 边一样多; 若所有分量都是偶环或「M 边不少于 M* 边」的交替路, 则 |M| ≥ |M*|, 矛盾。故存在一个分量是交替路且 M* 边比 M 边多一条: 其两端在 M* 中匹配、在 M 中未匹配, 恰是 M 的增广路, 矛盾。匈牙利算法: 每轮从新顶点 x 出发 DFS, 递归成功链 x → y₁ → x₁ → y₂ → … 恰构成一条从 x 到某未匹配 y 的交替路, 即增广路; 翻转后匹配数加 1。由 Berge 定理, 算法终止于最大匹配。"
+    },
+    {
+     "diff": 4,
+     "q": "棋盘覆盖: n×m 棋盘(黑白相间染色), 用 1×2 多米诺骨牌覆盖, 求最多能覆盖多少格(每格至多一块骨牌)。建模为二分图最大匹配, 给出算法、复杂度与正确性论证(n, m ≤ 100)。",
+     "hint": "每个格子一个顶点, 黑白两色构成二分图两部; 相邻格子连边; 一块骨牌覆盖一条边; 骨牌不重叠 ⇔ 边不共顶点 ⇔ 匹配。",
+     "ans": "建模: 按 (i + j) 的奇偶把格子染成黑白两色, 黑格与白格分别作为二分图两部 X, Y; 对每对上下左右相邻的格子建边。覆盖方案与匹配一一对应: 每块骨牌覆盖两个相邻格子, 恰对应一条黑白边; 骨牌不重叠 ⇔ 匹配边不共顶点。最大覆盖格数 = 2 × 最大匹配数。算法: 匈牙利算法, V = n·m ≤ 10⁴, E ≤ 2·n·m(每个格子至多 4 个邻居), O(V·E) 完全可行。正确性: 黑格只邻白格, 建图确为二分图; 匹配与覆盖的对应由定义直接成立; 匈牙利由 Berge 定理保证最优。特例: 若 n·m 为奇数, 最多覆盖 n·m − 1 格(必有一格空出); 「能否完全覆盖」等价于最大匹配数 = n·m/2。"
+    },
+    {
+     "diff": 4,
+     "q": "König 定理的构造性证明: 对二分图 G = (X ∪ Y, E), 从最大匹配 M 出发构造一个大小等于 |M| 的最小点覆盖, 并证明该覆盖覆盖所有边。",
+     "hint": "从所有未匹配的 X 顶点出发, 沿「非匹配边 X→Y、匹配边 Y→X」交替走, 标记可达顶点集 Z; 覆盖 = (X ∖ Z) ∪ (Y ∩ Z); 证明每个匹配边恰有一个端点被选。",
+     "ans": "构造: 设 M 是最大匹配。令 Z = 从所有未匹配的 X 顶点出发, 交替走「非匹配边(X → Y)与匹配边(Y → X)」可达的顶点集(含起点)。令 C = (X ∖ Z) ∪ (Y ∩ Z)。证明 C 是点覆盖: 反设存在边 e = (x, y) 未被覆盖, 即 x ∈ Z 且 y ∉ Z。分两类: ① 若 e ∈ M(匹配边): x ∈ Z, 而 Z 中匹配边的两个端点总是同时被标记(交替路径可沿匹配边从 x 走到 y), 且未匹配的 X 起点没有匹配边、不会以「y ∉ Z」的方式矛盾——严格说, 由交替路径的定义, 匹配边 (x, y) 一旦一端在 Z 中另一端必在 Z 中, 故 y ∈ Z, 矛盾; ② 若 e ∉ M: x ∈ Z, 交替路径走到 x 后可以沿非匹配边 (x, y) 继续, 故 y 也应被标记, 矛盾。故 C 覆盖所有边。证明 |C| = |M|: 对每个匹配边 (x, y): 若 x ∈ Z, 则 y ∈ Z(匹配边两端同标), 此时 x ∉ C 而 y ∈ C; 若 x ∉ Z, 则 x ∈ C 而 y ∉ C(否则 y ∈ Z 且匹配边会把 x 也标入 Z); 每个匹配边恰有一个端点入选, 且非匹配端点不会重复计入, 故 |C| = |M|。由「任何点覆盖 ≥ 任何匹配」, C 是最小点覆盖。该构造同时给出从最大匹配求最小点覆盖的实用方法。"
+    }
+   ]
+  }
+ ]
+}

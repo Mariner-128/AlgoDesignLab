@@ -1,0 +1,1116 @@
+# -*- coding: utf-8 -*-
+"""生成 web/chapters/ch07.json — 第7章 高级数据结构"""
+import json, os, io, re
+
+OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "web", "chapters", "ch07.json")
+
+def S(id_, title, keywords, desc, theory, keyPoints, codes, exercises):
+    return {"id": id_, "title": title, "keywords": keywords, "desc": desc,
+            "theory": theory, "keyPoints": keyPoints, "codes": codes, "exercises": exercises}
+
+# ==================== 7-1 并查集 ====================
+t71 = """**什么是并查集?** 并查集(Disjoint Set Union, DSU)维护若干个互不相交的集合, 支持两种操作: **查找**(find): 查询某元素所在集合的代表元(根); **合并**(union): 把两个集合合并为一个。经典实现用**树**表示集合: 每个结点只存一个父指针, 根就是代表元; 初始时每个元素自成一棵树(parent[x] = x)。
+
+## 两个关键优化
+
+- **路径压缩(path compression)**: find(x) 时把沿途经过的结点直接挂到根下。下次再查这些结点时几乎一步到位, 摊还代价接近常数;
+- **按秩合并(union by rank)**: 合并时让**秩**(树高上界)较小的根挂到秩较大的根下, 秩相等时随便挂并把新根的秩加 1。这保证任何时刻树高 O(log n)。
+
+```text
+find(x): 若 parent[x] != x 则 parent[x] = find(parent[x]); 返回 parent[x]
+union(x, y): rx = find(x); ry = find(y)
+  若 rx == ry 返回; 若 rank[rx] 小于 rank[ry] 则 parent[rx] = ry, 否则 parent[ry] = rx(相等时 rank[rx]++)
+```
+
+## 复杂度: 反阿克曼函数
+
+单独使用任一优化都是 O(log n); **两者结合**后, m 次操作的总时间 O(m·α(n)), 其中 **α(n) 是反阿克曼函数**: α(n) 增长极慢, 当 n ≤ 2^65536 时 α(n) ≤ 5, 实际可视为常数。直观理解: 路径压缩使树「越来越扁」, 秩保证树不会太高, 二者叠加产生近常数行为。
+
+## 典型应用
+
+- **Kruskal 最小生成树**: 边按权排序后, 用并查集判断两端点是否已连通, 不连通则合并; 总时间 O(m log m)(排序主导);
+- **动态连通性**: 在线回答「两点是否连通」「连通块个数」;
+- 离线 Tarjan-LCA、连通分量划分、网格染色连通块计数等。
+
+**易错点**: union 前必须先 find 取根, 不能直接操作原结点; 路径压缩只发生在 find 调用中; 按秩合并维护的是「秩」而不是实时深度(压缩后深度变小, 秩不变), 不要混用。"""
+
+c71 = r"""#include <stdio.h>
+#define MAXN 100000
+
+/* 并查集: 路径压缩 + 按秩合并, m 次操作复杂度 O(m·α(n)) */
+int parent[MAXN], rnk[MAXN];
+
+int find(int x) {                     /* 路径压缩: 沿途结点直接挂到根下 */
+    if (parent[x] != x) parent[x] = find(parent[x]);
+    return parent[x];
+}
+
+void unite(int x, int y) {            /* 按秩合并: 矮树挂到高树下 */
+    x = find(x); y = find(y);
+    if (x == y) return;
+    if (rnk[x] < rnk[y]) parent[x] = y;
+    else { parent[y] = x; if (rnk[x] == rnk[y]) rnk[x]++; }
+}
+
+int main(void) {
+    int n, q, i, op, a, b;
+    printf("请输入结点数 n 与操作数 q: ");
+    if (scanf("%d %d", &n, &q) != 2 || n < 1 || n > MAXN) { printf("输入无效!\n"); return 1; }
+    for (i = 1; i <= n; i++) { parent[i] = i; rnk[i] = 0; }
+    printf("接下来 %d 行: 1 a b 合并; 2 a b 查询是否连通\n", q);
+    while (q--) {
+        if (scanf("%d %d %d", &op, &a, &b) != 3 || a < 1 || a > n || b < 1 || b > n) continue;
+        if (op == 1) unite(a, b);
+        else printf("%d 与 %d %s\n", a, b, find(a) == find(b) ? "连通" : "不连通");
+    }
+    return 0;
+}
+"""
+
+p71 = r"""# 并查集: 路径压缩 + 按秩合并, m 次操作复杂度 O(m·α(n))
+class DSU:
+    def __init__(self, n):
+        self.parent = list(range(n + 1))   # 父指针, 根指向自己
+        self.rnk = [0] * (n + 1)           # 秩: 树高上界
+
+    def find(self, x):
+        # 路径压缩: 沿途结点直接挂到根下
+        if self.parent[x] != x:
+            self.parent[x] = self.find(self.parent[x])
+        return self.parent[x]
+
+    def unite(self, a, b):
+        # 按秩合并: 矮树挂到高树下, 秩相等时秩加一
+        ra, rb = self.find(a), self.find(b)
+        if ra == rb:
+            return
+        if self.rnk[ra] < self.rnk[rb]:
+            self.parent[ra] = rb
+        else:
+            self.parent[rb] = ra
+            if self.rnk[ra] == self.rnk[rb]:
+                self.rnk[ra] += 1
+
+n, q = map(int, input("请输入结点数 n 与操作数 q: ").split())
+dsu = DSU(n)
+print(f"接下来 {q} 行: 1 a b 合并; 2 a b 查询是否连通")
+for _ in range(q):
+    op, a, b = map(int, input().split())
+    if op == 1:
+        dsu.unite(a, b)
+    else:
+        print(f"{a} 与 {b} {'连通' if dsu.find(a) == dsu.find(b) else '不连通'}")
+"""
+
+ex71 = [
+    {"diff": 3,
+     "q": "给定 n 个点、m 条边的无向图(初始所有边存在), 以及 q 个按顺序执行的「删边」操作(保证被删的边删除前存在)。要求输出: 每执行完一次删边后, 指定点对 (s, t) 是否连通。数据规模 n, m, q ≤ 10^5。设计算法并分析复杂度。",
+     "hint": "并查集只能合并、不能删除; 正难则反——从最终状态(所有被删过的边都不存在)开始, 把操作倒过来看, 删边就变成了加边。先标记被删的边, 再逆序处理。",
+     "ans": "**思路(离线反向处理)**: ① 读入全部操作, 用集合标记被删的边; ② 用并查集合并所有「从未被删」的边, 得到最终状态的连通性; ③ 从最后一个操作倒推到第一个: 每步先把当前 (s, t) 的连通性记录到答案(用 find 判断), 再把该操作删掉的边加回并查集(即 union 两个端点)。\n\n**正确性**: 逆序第 i 步时, 并查集恰好表示「第 i 次删边之前图删除了后 q−i 条边之后」的状态; 因为逆序处理时所有在此之后被删的边都已加回, 而在此之前被删的边尚未加回——与原始时刻的图完全一致。\n\n**复杂度**: 预处理 O(m·α(n)); 逆序 q 步每步 O(α(n)); 总 O((m+q)·α(n)) 时间, O(n+m) 空间。这就是「删边转加边」的经典离线技巧。"},
+    {"diff": 4,
+     "q": "证明: 只使用按秩合并(不使用路径压缩)时, 任意时刻每个结点到其根的路径长度至多为 log₂ n(n 为元素总数); 并据此说明 m 次任意操作(含查找)的最坏时间复杂度为 O(m log n)。",
+     "hint": "对「秩」做归纳: 证明秩为 r 的根所在树至少含 2^r 个结点。秩只在两个秩相等的根合并时才会增加。",
+     "ans": "**引理**: 秩为 r 的根所在树至少含 2^r 个结点。对 r 归纳: r = 0 时树只有 1 个结点 = 2⁰ ✓。假设所有秩小于 r 的树满足引理。秩为 r 的树必然是某次「两个秩为 r−1 的树合并」产生的(秩只在两树秩相等时加 1), 新树结点数 = 2^(r−1) + 2^(r−1) = 2^r ✓。\n\n**结论**: 因为树总共含 n 个结点, 根的秩 r 满足 2^r ≤ n, 即 r ≤ ⌊log₂ n⌋。查找时沿父链上升, 每步父的秩严格递减, 故至多 log₂ n 步; 合并 O(1) 次查找。因此 m 次操作最坏 O(m log n) 时间, O(n) 空间。\n\n**说明**: 加上路径压缩后, 摊还分析(势函数方法)可以把总时间压到 O(m·α(n)), 这是本节理论的核心结论。"},
+    {"diff": 4,
+     "q": "动物王国只有三类动物 A、B、C: A 吃 B, B 吃 C, C 吃 A。现有 n 个动物和 k 句话, 每句话形如「1 x y」(表示 x 与 y 同类)或「2 x y」(表示 x 吃 y)。若某句话与之前的真话冲突, 或 x, y 超出 [1, n], 则为假话, 不计入; 否则为真话。统计假话总数。设计 O(k·α(n)) 的算法(经典「食物链」问题)。",
+     "hint": "带权并查集: 每个结点维护它到父结点的一条关系 rel[x] ∈ {0, 1, 2}(0 同类, 1 x 吃父, 2 x 被父吃), 关系沿路径按模 3 加法复合; 合并两个集合时先推导两个根之间的关系再连接。",
+     "ans": "**思路**: 并查集 + 关系偏移量。定义 rel[x]: x 与 parent[x] 的关系, 0 同类、1 x 吃 parent[x]、2 x 被 parent[x] 吃, 关系合成用模 3 加法: x 与祖父的关系 = (rel[x] + rel[parent[x]]) mod 3。\n\n**find 路径压缩**: 先记录旧父 f, 递归 find(f) 后 rel[x] = (rel[x] + rel[f]) % 3, 再 parent[x] = 根。\n\n**合并**: 对「1 x y」: rx, ry 不同根时, 令 parent[rx] = ry, rel[rx] = (3 − rel[x] + rel[y]) % 3(使 (rel[x] + rel[rx]) % 3 == rel[y]); 同根时检查 rel[x] == rel[y]。对「2 x y」(x 吃 y): 不同根时 rel[rx] = (3 − rel[x] + rel[y] + 1) % 3; 同根时检查 (rel[x] − rel[y] + 3) % 3 == 1。\n\n**关键代码**(find 核心):\n```python\ndef find(x):\n    if parent[x] != x:\n        f = parent[x]\n        parent[x] = find(f)\n        rel[x] = (rel[x] + rel[f]) % 3\n    return parent[x]\n```\n\n**复杂度**: 每次操作常数次 find/union, 总 O(k·α(n))。正确性由「rel 沿路径模 3 复合」这一不变式保证。"}
+]
+
+# ==================== 7-2 平衡二叉搜索树 ====================
+t72 = """## BST 的退化问题
+
+二叉搜索树(BST)的查找/插入/删除平均 O(log n), 但**与插入顺序强相关**: 若按 1, 2, …, n 依次插入, 树退化成一条链, 操作退化为 O(n)。平衡二叉搜索树通过**旋转**调整结构, 保证树高 O(log n)。
+
+## AVL 树
+
+AVL 树要求每个结点满足 |平衡因子| ≤ 1, 平衡因子 = 左子树高 − 右子树高。插入/删除后从修改点向上回溯, 遇到平衡因子为 ±2 的结点, 按「过长方向」分四种旋转:
+
+- **LL**(左左): 左孩子的左子树过高 → 对该结点**右旋**;
+- **RR**(右右): 右孩子的右子树过高 → 对该结点**左旋**;
+- **LR**(左右): 左孩子的右子树过高 → 先左旋左孩子, 再右旋该结点(双旋);
+- **RL**(右左): 右孩子的左子树过高 → 先右旋右孩子, 再左旋该结点(双旋)。
+
+旋转不改变中序遍历顺序, 只把「过高的一侧」抬起来。旋转后子树高度与插入前相同, 故插入只需一次(双)旋, 祖先自动恢复平衡; 删除可能需要沿路径多次旋转。AVL 树高 ≤ 1.44·log₂(n+2), 查找最坏 O(log n)。
+
+## 红黑树
+
+红黑树是**近似平衡**的 BST, 每个结点多一个颜色位, 满足五条性质:
+
+1. 每个结点非红即黑;
+2. 根是黑色;
+3. 每个叶结点(NIL)是黑色;
+4. 红结点的两个子结点都是黑色(**红不连红**);
+5. 任一结点到其所有后代叶结点的路径上, 黑结点数目相同(**黑高相等**)。
+
+由性质 4、5 可证: 红黑树高 ≤ 2·log₂(n+1), 故查找 O(log n)。插入用「变色 + 旋转」消除双红冲突; 删除用「兄弟旋转 + 上借黑色」处理双黑, 均 O(log n), 且旋转次数摊还 O(1)。红黑树是 STL map/set、Java TreeMap、Linux 内核红黑树的基础。
+
+**易错点**: 旋转不改中序序; 红黑树「黑高」才是高度分析的核心; AVL 查询更快、红黑树插入删除常数更小; 删除远比插入复杂。"""
+
+c72 = r"""#include <stdio.h>
+#include <stdlib.h>
+#include <math.h>
+
+/* AVL 树: 插入 + 四种旋转(LL/RR/LR/RL), 保持 |平衡因子| <= 1 */
+typedef struct Node { int key, h; struct Node *l, *r; } Node;
+
+int height(Node *p) { return p ? p->h : 0; }
+int bf(Node *p) { return p ? height(p->l) - height(p->r) : 0; }
+
+Node *new_node(int key) {
+    Node *p = (Node *)malloc(sizeof(Node));
+    p->key = key; p->h = 1; p->l = p->r = NULL;
+    return p;
+}
+
+void fix(Node *p) {   /* 由孩子高度更新 p 的高度 */
+    int a = height(p->l), b = height(p->r);
+    p->h = 1 + (a > b ? a : b);
+}
+
+Node *rot_right(Node *p) {           /* 右旋: 左孩子上升为根 */
+    Node *q = p->l;
+    p->l = q->r;
+    q->r = p;
+    fix(p); fix(q);
+    return q;
+}
+
+Node *rot_left(Node *p) {            /* 左旋: 右孩子上升为根 */
+    Node *q = p->r;
+    p->r = q->l;
+    q->l = p;
+    fix(p); fix(q);
+    return q;
+}
+
+Node *insert(Node *p, int key) {
+    if (!p) return new_node(key);
+    if (key < p->key) p->l = insert(p->l, key);
+    else if (key > p->key) p->r = insert(p->r, key);
+    else return p;                   /* 重复键不插入 */
+    fix(p);
+    int b = bf(p);
+    if (b > 1 && bf(p->l) >= 0) return rot_right(p);                    /* LL */
+    if (b > 1) { p->l = rot_left(p->l); return rot_right(p); }          /* LR */
+    if (b < -1 && bf(p->r) <= 0) return rot_left(p);                    /* RR */
+    if (b < -1) { p->r = rot_right(p->r); return rot_left(p); }         /* RL */
+    return p;
+}
+
+void inorder(Node *p) {              /* 中序遍历: 输出有序序列 */
+    if (!p) return;
+    inorder(p->l);
+    printf("%d ", p->key);
+    inorder(p->r);
+}
+
+int main(void) {
+    Node *root = NULL;
+    int n, x;
+    printf("请输入元素个数 n: ");
+    if (scanf("%d", &n) != 1 || n <= 0 || n > 100000) { printf("输入无效!\n"); return 1; }
+    printf("请输入 %d 个整数: ", n);
+    for (int i = 0; i < n; i++) { scanf("%d", &x); root = insert(root, x); }
+    printf("中序遍历: ");
+    inorder(root);
+    printf("\n树高: %d (log2(n+1) = %.2f)\n", height(root), log((double)n + 1) / log(2.0));
+    return 0;
+}
+"""
+
+p72 = r"""# AVL 树: 插入 + 四种旋转, 保持 |平衡因子| <= 1
+class Node:
+    def __init__(self, key):
+        self.key = key
+        self.h = 1            # 子树高度
+        self.l = self.r = None
+
+def height(p):
+    return p.h if p else 0
+
+def bf(p):
+    return height(p.l) - height(p.r) if p else 0
+
+def fix(p):
+    p.h = 1 + max(height(p.l), height(p.r))
+
+def rot_right(p):             # 右旋: 左孩子上升为根
+    q = p.l
+    p.l = q.r
+    q.r = p
+    fix(p); fix(q)
+    return q
+
+def rot_left(p):              # 左旋: 右孩子上升为根
+    q = p.r
+    p.r = q.l
+    q.l = p
+    fix(p); fix(q)
+    return q
+
+def insert(p, key):
+    if p is None:
+        return Node(key)
+    if key < p.key:
+        p.l = insert(p.l, key)
+    elif key > p.key:
+        p.r = insert(p.r, key)
+    else:
+        return p              # 重复键不插入
+    fix(p)
+    b = bf(p)
+    if b > 1 and bf(p.l) >= 0:      # LL: 右旋
+        return rot_right(p)
+    if b > 1:                       # LR: 先左旋后右旋
+        p.l = rot_left(p.l)
+        return rot_right(p)
+    if b < -1 and bf(p.r) <= 0:     # RR: 左旋
+        return rot_left(p)
+    if b < -1:                      # RL: 先右旋后左旋
+        p.r = rot_right(p.r)
+        return rot_left(p)
+    return p
+
+def inorder(p):
+    return (inorder(p.l) + [p.key] + inorder(p.r)) if p else []
+
+import math
+n = int(input("请输入元素个数 n: "))
+vals = list(map(int, input(f"请输入 {n} 个整数: ").split()))
+root = None
+for x in vals:
+    root = insert(root, x)
+print("中序遍历:", inorder(root))
+print(f"树高: {height(root)} (log2(n+1) = {math.log2(n + 1):.2f})")
+"""
+
+ex72 = [
+    {"diff": 3,
+     "q": "给定一个由 n 个互不相同的正整数组成的序列, 判断它能否是某棵二叉搜索树的后序遍历结果。若能输出「是」, 否则输出「否」。给出算法、正确性要点与复杂度分析(含最坏与平均情况)。",
+     "hint": "后序遍历的最后一个元素是根; 左子树的所有键都小于根, 右子树的所有键都大于根——在序列中找到左右子树的分界点, 再递归检查两侧; 若右侧出现小于根的元素则非法。",
+     "ans": "**算法**(递归, 区间 [l, r]): ① 若 l ≥ r 返回真; ② 根 key = A[r]; ③ 从 l 开始找到第一个大于 key 的位置 m(左子树区间 [l, m−1] 全小于 key); ④ 检查 [m, r−1] 中是否全部大于 key, 若出现 ≤ key 的元素返回假; ⑤ 递归检查 [l, m−1] 与 [m, r−1]。\n\n**正确性**: 二叉搜索树后序遍历的递归结构正是「左子树(全部小于根) + 右子树(全部大于根) + 根」; 递归判定与定义一一对应, 且只可能误判「右侧混入小于根的元素」, 该情况已被第 ④ 步排除。\n\n**复杂度**: 每层递归线性扫描当前区间, 最坏(退化为链, 每次只切掉 1 个元素)为 Σ = O(n²); 随机/均衡时为 T(n) = 2T(n/2) + O(n) = O(n log n); 空间 O(h)。\n\n**补充**: 用「单调递减栈」可在 O(n) 内完成判定: 逆序遍历, 维护栈与「当前允许的最小值」上界, 遇到大于栈顶的根时弹栈并更新上界——这是竞赛常用优化。"},
+    {"diff": 4,
+     "q": "对两个插入序列, 依次画出每步插入后的 AVL 树(标注平衡因子), 并注明每一步触发的旋转类型: (a) 3, 2, 1, 4, 5, 6, 7, 10, 9, 8; (b) 30, 10, 20。最后论证: 在 AVL 树中插入一个结点后, 至多执行一次(单或双)旋转即可使整棵树恢复平衡。",
+     "hint": "维护每个结点的平衡因子; (a) 中 1、5、6、10、8 的插入会触发失衡, (b) 触发 LR 双旋; 关键观察: 旋转后子树的「高度」与插入前相同, 因此祖先的平衡因子不受影响。",
+     "ans": "**(b) 30, 10, 20**: 插 30 → {30}; 插 10 → 30 的左孩子; 插 20 → 10 的右孩子, 此时 bf(30) = h(左=2) − 0 = +2 失衡, 且 30 的左孩子 10 的平衡因子为 −1(右倾)→ **LR 双旋**: 先对 10 左旋(20 上升为 10 的父), 再对 30 右旋, 得到根 20、左 10、右 30, 全部平衡。\n\n**(a) 3,2,1,4,5,6,7,10,9,8**(只列触发旋转的步骤):\n- 插 1: 树 3←2←1, bf(3) = +2 且左孩子左倾 → **LL**, 对 3 右旋: 根变 2, 左 1 右 3;\n- 插 5: 3 的右孩子 4 再挂 5, bf(3) = −2 → **RR**, 对 3 左旋: 子树根 4, 左 3 右 5;\n- 插 6: 5 挂 6, bf(2) = 1 − h(4 子树=3) = −2 → **RR**, 对 2 左旋: 根 4, 左 2(左 1 右 3)右 5, 5 挂 6;\n- 插 7: 6 挂 7, bf(5) = −2 → **RR**, 对 5 左旋: 5←6→7 变 6 为根, 左 5 右 7;\n- 插 10: 7 挂 10, bf(7) = −2 → **RR**, 对 7 左旋: 7←10 变 10 为根? 实际是 7 的右孩子 10 上升, 7 变 10 的左孩子;\n- 插 9: 10 挂左孩子 9, 无失衡;\n- 插 8: 9 挂左孩子 8, bf(10) = h(9 子树=2) − 0 = +2 且左孩子 9 左倾 → **LL**, 对 10 右旋: 9 上升为根, 左 8 右 10。\n最终树高为 4, 而 log₂(11) ≈ 3.46、1.44·log₂(12) ≈ 5.2, 符合 AVL 高度上界。\n\n**「至多一次旋转」论证**: 设失衡结点为 x, 其子树在插入前高度为 H, 插入后为 H+1。执行对应旋转后, 新子树根的高度恢复为 H(旋转的几何性质: 三个子树的高度满足约束, 可逐一验证四种情形), 与插入前相同。因此 x 的所有祖先的平衡因子与插入前完全一致——它们不需要任何调整。故插入只需处理回溯路径上**第一个**失衡结点, 一次(双)旋收工。"},
+    {"diff": 5,
+     "q": "证明: 含 n 个内部结点(忽略 NIL 叶)的红黑树, 其高度至多为 2·log₂(n+1)。要求: 先定义黑高 bh(x), 证明「以 x 为根的子树至少包含 2^(bh(x)) − 1 个内部结点」, 再结合红黑树五条性质完成证明。",
+     "hint": "对 bh(x) 归纳; 关键是用性质 4 推出: 任一孩子的黑高至少是 bh(x) − 1; 最后用性质 4、5 把总高度 h 与根的黑高联系起来: 根到叶的路径上红结点数 ≤ 黑结点数。",
+     "ans": "**定义**: 黑高 bh(x) = 从 x(不含)到任一后代叶结点的路径上的黑结点数。由性质 5, 该数对所有叶子路径相同, 定义良好。\n\n**引理**: 以 x 为根的子树至少含 2^(bh(x)) − 1 个内部结点。对 bh(x) 归纳:\n- bh(x) = 0: x 是 NIL 叶, 内部结点数 0 = 2⁰ − 1 ✓;\n- 设 bh(x) = k ≥ 1, x 有孩子 y~1~, y~2~。若 y~i~ 是红结点, 由性质 4 它的孩子必为黑, 故 bh(y~i~) = k; 若 y~i~ 是黑结点, 则 bh(y~i~) = k − 1。总之 bh(y~i~) ≥ k − 1。由归纳假设, 每个孩子子树至少 2^(k−1) − 1 个内部结点, 故 x 子树至少 (2^(k−1) − 1) + (2^(k−1) − 1) + 1 = 2^k − 1 ✓。\n\n**完成证明**: 设树高(根到叶的边数)为 h, 根黑高为 bh。由性质 4(红不连红), 任意根叶路径上红结点至多占一半, 故 h ≤ 2·bh。再由引理 n ≥ 2^bh − 1, 得 bh ≤ log₂(n+1), 于是 h ≤ 2·log₂(n+1) ✓。\n\n**推论**: 红黑树的查找、插入、删除最坏均为 O(log n)——这是其作为工业级平衡树的根本保证。"}
+]
+
+# ==================== 7-3 堆与优先队列 ====================
+t73 = """## 二叉堆的结构
+
+**二叉堆**是一棵**完全二叉树**, 用数组 1..n 存储: i 的孩子是 2i、2i+1, 父是 ⌊i/2⌋。**堆序性质**: 大根堆中每个父 ≥ 子。完全二叉树保证数组紧凑、无空洞。
+
+- **上滤(sift up)**: 插入时把新元素放到末尾, 反复与父比较并交换, 直到堆序恢复——O(log n);
+- **下滤(sift down)**: 删除堆顶时, 把末尾元素移到根部, 再反复与较大的孩子(大根堆)交换下沉——O(log n)。
+
+## 建堆为什么是 O(n)
+
+自底向上从 ⌊n/2⌋ 到 1 逐个下滤。高度为 h 的结点至多 ⌈n/2^(h+1)⌉ 个, 每个下滤至多 h 步, 总步数:
+
+> 总步数 = Σ~h≥0~ ⌈n/2^(h+1)⌉·h ≤ n·Σ~h≥0~ h/2^h = 2n = O(n)
+
+其中 Σ h/2^h 收敛到 2(等比-算术级数)。直觉: 大多数结点在底部、下滤步数少; 而「自顶向下逐个插入」每个元素上滤 O(log n), 才是 O(n log n)。
+
+## 堆排序与优先队列
+
+**堆排序**: 建堆 O(n), 然后反复把堆顶与末尾交换、堆大小减一、下滤新堆顶, 共 n−1 次 O(log n) → 总 O(n log n); 原地、不稳定, 常数较小。**优先队列**: 堆的典型实现, 插入/删除极值 O(log n)、取极值 O(1), 用于 Dijkstra 最短路、Huffman 编码、任务调度、Top-K、合并 k 个有序序列。
+
+**易错点**: 下标从 1 开始可免 0 孩子的特判; 下滤前先比较两个孩子选出较大者; 建堆必须从 ⌊n/2⌋ 向下到 1, 方向反了复杂度会退化。"""
+
+c73 = r"""#include <stdio.h>
+
+/* 堆排序: 建堆 O(n) + 逐个取出堆顶 O(n log n), 原地排序 */
+void sift_down(int a[], int i, int n) {   /* 大根堆下滤: 根与较大孩子交换 */
+    while (1) {
+        int l = 2 * i, r = 2 * i + 1, mx = i;
+        if (l <= n && a[l] > a[mx]) mx = l;
+        if (r <= n && a[r] > a[mx]) mx = r;
+        if (mx == i) break;
+        int t = a[i]; a[i] = a[mx]; a[mx] = t;
+        i = mx;
+    }
+}
+
+void heap_sort(int a[], int n) {          /* a[1..n] */
+    for (int i = n / 2; i >= 1; i--) sift_down(a, i, n);  /* 自底向上建堆 O(n) */
+    for (int i = n; i >= 2; i--) {        /* 依次把最大值放到末尾 */
+        int t = a[1]; a[1] = a[i]; a[i] = t;
+        sift_down(a, 1, i - 1);           /* 堆缩小后重新下滤堆顶 */
+    }
+}
+
+int main(void) {
+    int n, a[100005];
+    printf("请输入元素个数 n: ");
+    if (scanf("%d", &n) != 1 || n < 1 || n > 100000) { printf("输入无效!\n"); return 1; }
+    printf("请输入 %d 个整数: ", n);
+    for (int i = 1; i <= n; i++) scanf("%d", &a[i]);
+    heap_sort(a, n);
+    printf("排序结果: ");
+    for (int i = 1; i <= n; i++) printf("%d ", a[i]);
+    printf("\n");
+    return 0;
+}
+"""
+
+p73 = r"""# 二叉堆(小根堆) + Top-K 问题: 从 n 个数中找最大的 k 个, O(n log k)
+class MinHeap:
+    def __init__(self):
+        self.a = [0]                # 下标从 1 开始, a[0] 占位
+
+    def push(self, x):              # 上滤: 新元素放到末尾, 反复与父交换
+        self.a.append(x)
+        i = len(self.a) - 1
+        while i > 1 and self.a[i // 2] > self.a[i]:
+            self.a[i // 2], self.a[i] = self.a[i], self.a[i // 2]
+            i //= 2
+
+    def pop(self):                  # 下滤: 堆顶与末尾交换后下沉
+        top, last = self.a[1], self.a.pop()
+        if len(self.a) > 1:
+            self.a[1] = last
+            i = 1
+            while True:
+                l, r, m = 2 * i, 2 * i + 1, i
+                if l < len(self.a) and self.a[l] < self.a[m]: m = l
+                if r < len(self.a) and self.a[r] < self.a[m]: m = r
+                if m == i:
+                    break
+                self.a[i], self.a[m] = self.a[m], self.a[i]
+                i = m
+        return top
+
+    def top(self):
+        return self.a[1]
+
+    def size(self):
+        return len(self.a) - 1
+
+n, k = map(int, input("请输入 n 和 k (n 个数中取最大的 k 个): ").split())
+vals = list(map(int, input(f"请输入 {n} 个整数: ").split()))
+h = MinHeap()
+for x in vals:                      # 维护大小为 k 的小根堆: 堆顶即当前第 k 大
+    if h.size() < k:
+        h.push(x)
+    elif x > h.top():
+        h.pop(); h.push(x)
+print("最大的 k 个(降序):", sorted(h.a[1:], reverse=True))
+"""
+
+ex73 = [
+    {"diff": 3,
+     "q": "用自底向上的方法在数组 A[1..n] 上建大根堆(从 ⌊n/2⌋ 到 1 逐个下滤)。证明总时间为 O(n): 写出关键求和式并说明其收敛; 同时说明为什么「从 1 到 n 自顶向下逐个插入」的时间是 O(n log n)。",
+     "hint": "高度为 h 的结点最多 ⌈n/2^(h+1)⌉ 个, 每个下滤至多 h 步; 用级数 Σ h·x^h = x/(1−x)² 在 x = 1/2 处求值。",
+     "ans": "设 n 个结点的完全二叉树高 H = ⌊log₂ n⌋。高度为 h 的结点(距叶子 h 层)至多 ⌈n/2^(h+1)⌉ 个: 因为第 h 层(从下往上数)以上的结点树是高度 ≥ h 的完全子树。每个这样的结点下滤至多 h 步, 总步数:\n\n> Σ~h=0..H~ ⌈n/2^(h+1)⌉ · h ≤ (n/2)·Σ~h=0..∞~ h/2^h = (n/2) · (1/2)/(1−1/2)² = n\n\n其中 Σ~h≥0~ h·x^h = x/(1−x)², 取 x = 1/2 得 2。故建堆 **O(n)**。\n\n**对比**: 自顶向下逐个插入, 第 i 个元素上滤代价 O(log i), 总代价 Σ~i=1..n~ O(log i) = O(n log n)——因为多数元素在后期插入、深度大。建堆之所以 O(n), 是因为自底向下时「多数结点在下层、下滤步数少」, 两层效应叠加出线性时间。\n\n**推论**: 由于下滤与上滤均为 O(log n), 堆排序后续 n−1 次取堆顶共 O(n log n), 故堆排序总时间 O(n log n)。"},
+    {"diff": 4,
+     "q": "给定 k 个已排序数组, 总元素个数为 n, 设计算法用堆把它们合并成一个有序数组, 并分析时间与空间复杂度。特别地, 当 k = n/2(每个数组恰 2 个元素)时复杂度是多少? 当 k = 2 时与归并排序的合并有何联系?",
+     "hint": "小根堆中存放 k 个「当前元素」, 每个元素附带所属数组的编号; 每次弹出堆顶输出, 再把它所在数组的下一个元素压入堆。",
+     "ans": "**算法**: ① 初始化大小为 k 的小根堆, 压入每个数组的首元素(值, 数组号, 下标); ② 重复 n 次: 弹出堆顶 (v, id, idx) 输出 v; 若数组 id 还有下一个元素, 把 (a~id~[idx+1], id, idx+1) 压入堆。\n\n**正确性**: 每次输出的 v 是当前所有数组「尚未输出元素」中的最小值: 各数组内部有序, 每个数组的未输出部分以「下一个元素」为代表, 堆顶即全局最小; 输出后推进该数组, 堆仍正确。\n\n**复杂度**: 每次弹出/压入 O(log k), 共 n 次 → **O(n log k)** 时间, O(k) 空间。\n\n**特例**: k = n/2 时 O(n log(n/2)) = O(n log n); k = 2 时堆退化为两路归并的比较逻辑, 复杂度 O(n), 与归并排序的合并步骤本质相同(但用堆实现, 常数更大)。实际工程(如外部排序的多路归并)用败者树替代堆以进一步减小常数。"},
+    {"diff": 4,
+     "q": "设计一个数据结构支持两种操作: 插入一个整数 x(O(log n)), 查询当前元素的中位数(O(1)), n 为当前元素个数。要求用两个堆实现, 并给出插入过程的正确性论证(两堆大小差 ≤ 1 且大根堆堆顶 ≤ 小根堆堆顶)。",
+     "hint": "大根堆 L 存较小的一半, 小根堆 R 存较大的一半; 插入后若 L 比 R 多出超过 1 个, 把 L 的堆顶搬到 R; 若 R 比 L 多, 对称处理; 中位数是较大堆的堆顶或两堆顶的平均。",
+     "ans": "**结构**: L = 大根堆, R = 小根堆, 维护不变式: ① 任意时刻 |size(L) − size(R)| ≤ 1; ② L 中所有元素 ≤ R 中所有元素。\n\n**插入 x**: 若 L 空或 x ≤ L.top(), 把 x 压入 L; 否则压入 R。然后调整: 若 size(L) 比 size(R) 多 1 个以上, 把 L.top() 移到 R; 若 size(R) 比 size(L) 多, 把 R.top() 移到 L。\n\n**正确性(归纳)**: 设插入前不变式成立。压入后只有两个堆顶可能跨界: 若 x 进了 L 且 x 大于 R 的某些元素? 不会——x ≤ L.top() ≤ R 的所有元素(由 ②, 且 L.top() 是 L 的最大值); 若 x 进了 R 则 x 大于 L.top()(即 L 的全部元素)。故压入后 ② 仍成立。搬移堆顶操作把 L 最大值给 R 或把 R 最小值给 L, 同样保持 ②; 搬移后两堆大小差 ≤ 1, ① 成立。\n\n**查询中位数**: 若 size(L) 较大, 中位数 = L.top(); 若 size(R) 较大, 中位数 = R.top(); 若相等, 中位数 = (L.top() + R.top()) / 2。\n\n**复杂度**: 每次插入常数次 O(log n) 堆操作, 查询 O(1); 空间 O(n)。该结构是「数据流中位数」的标准解法。"}
+]
+
+# ==================== 7-4 线段树 ====================
+t74 = """## 线段树: 结构与建树
+
+**线段树**是处理数组区间问题的平衡二叉树: 每个结点对应一个区间 [l, r], 存该区间的聚合信息(和、最值、gcd 等); 根是 [1, n], 叶子是单点, 结点 [l, r] 的左右孩子是 [l, mid] 与 [mid+1, r], mid = ⌊(l+r)/2⌋。建树自底向上合并, O(n)。
+
+## 单点修改与区间查询
+
+- **单点修改**: 从根沿路径下到叶子, 更新路径上每个结点——O(log n);
+- **区间查询**: 从根递归, 若当前结点区间被查询区间**完全覆盖**, 直接返回其聚合值; 否则下探子区间。每次查询访问 O(log n) 个结点(每层至多 4 个), 故 O(log n)。
+
+## 区间修改与懒标记
+
+区间修改(如整体加 v)若逐点更新会退化为 O(n)。**懒标记(lazy propagation)**: 修改时若结点区间被完全覆盖, 只更新该结点并打标记「本区间已加 v, 但孩子尚未更新」, 立即返回; 之后任何需要深入其子树的操作, 先把标记**下推**给孩子再继续。这样区间加、区间查都是 O(log n)。
+
+## 典型应用
+
+- 区间和、区间最值、区间最大子段和、区间 gcd;
+- **逆序对**: 值域离散化后顺序扫描, 每个元素查询「已插入且大于它的个数」再插入自己, O(n log n);
+- 扫描线求矩形面积并、动态 RMQ 等。
+
+**易错点**: 数组要开 4 倍空间; 下推标记先更新孩子 sum 与 lazy, 再把父 lazy 清零; 区间完全覆盖的判断是 ql ≤ l 且 r ≤ qr; 递归深度仅 O(log n), 安全。"""
+
+c74 = r"""#include <stdio.h>
+#define MAXN 100005
+
+/* 线段树: 区间加(懒标记) + 区间和查询, 全部 O(log n) */
+long long sum[MAXN * 4], lazy[MAXN * 4];
+int a[MAXN];
+
+void build(int p, int l, int r) {
+    if (l == r) { sum[p] = a[l]; return; }
+    int m = (l + r) / 2;
+    build(p * 2, l, m);
+    build(p * 2 + 1, m + 1, r);
+    sum[p] = sum[p * 2] + sum[p * 2 + 1];
+}
+
+void pushdown(int p, int l, int r) {        /* 把懒标记下推给孩子 */
+    if (lazy[p] && l != r) {
+        int m = (l + r) / 2;
+        sum[p * 2] += lazy[p] * (m - l + 1);
+        sum[p * 2 + 1] += lazy[p] * (r - m);
+        lazy[p * 2] += lazy[p];
+        lazy[p * 2 + 1] += lazy[p];
+        lazy[p] = 0;
+    }
+}
+
+void add(int p, int l, int r, int ql, int qr, int v) {  /* 区间 [ql,qr] 加 v */
+    if (ql <= l && r <= qr) {               /* 完全覆盖: 打懒标记, 不深入 */
+        sum[p] += (long long)v * (r - l + 1);
+        lazy[p] += v;
+        return;
+    }
+    pushdown(p, l, r);
+    int m = (l + r) / 2;
+    if (ql <= m) add(p * 2, l, m, ql, qr, v);
+    if (qr > m) add(p * 2 + 1, m + 1, r, ql, qr, v);
+    sum[p] = sum[p * 2] + sum[p * 2 + 1];
+}
+
+long long query(int p, int l, int r, int ql, int qr) {  /* 区间 [ql,qr] 的和 */
+    if (ql <= l && r <= qr) return sum[p];
+    pushdown(p, l, r);
+    int m = (l + r) / 2;
+    long long res = 0;
+    if (ql <= m) res += query(p * 2, l, m, ql, qr);
+    if (qr > m) res += query(p * 2 + 1, m + 1, r, ql, qr);
+    return res;
+}
+
+int main(void) {
+    int n, q, op, l, r, v;
+    printf("请输入元素个数 n 与操作数 q: ");
+    if (scanf("%d %d", &n, &q) != 2 || n < 1 || n > MAXN) { printf("输入无效!\n"); return 1; }
+    printf("请输入 %d 个整数: ", n);
+    for (int i = 1; i <= n; i++) scanf("%d", &a[i]);
+    build(1, 1, n);
+    printf("操作: 1 l r v 区间加 v; 2 l r 查询区间和\n");
+    while (q--) {
+        scanf("%d", &op);
+        if (op == 1) { scanf("%d %d %d", &l, &r, &v); add(1, 1, n, l, r, v); }
+        else { scanf("%d %d", &l, &r); printf("区间 [%d,%d] 的和: %lld\n", l, r, query(1, 1, n, l, r)); }
+    }
+    return 0;
+}
+"""
+
+p74 = r"""# 线段树: 区间最大子段和(维护 sum/前缀最大/后缀最大/区间最大), O(log n) 查询
+class Node:
+    def __init__(self, s=0, pre=0, suf=0, best=0):
+        self.s = s          # 区间和
+        self.pre = pre      # 最大前缀和
+        self.suf = suf      # 最大后缀和
+        self.best = best    # 最大子段和
+
+def merge(l, r):
+    # 合并规则: best 三种来源(全在左 / 全在右 / 跨界)
+    return Node(l.s + r.s,
+                max(l.pre, l.s + r.pre),
+                max(r.suf, r.s + l.suf),
+                max(l.best, r.best, l.suf + r.pre))
+
+def build(p, l, r, a, tree):
+    if l == r:
+        v = a[l]
+        tree[p] = Node(v, v, v, v)
+        return
+    m = (l + r) // 2
+    build(p * 2, l, m, a, tree)
+    build(p * 2 + 1, m + 1, r, a, tree)
+    tree[p] = merge(tree[p * 2], tree[p * 2 + 1])
+
+def query(p, l, r, ql, qr, tree):
+    if ql <= l and r <= qr:
+        return tree[p]
+    m = (l + r) // 2
+    if qr <= m:
+        return query(p * 2, l, m, ql, qr, tree)
+    if ql > m:
+        return query(p * 2 + 1, m + 1, r, ql, qr, tree)
+    return merge(query(p * 2, l, m, ql, qr, tree),
+                 query(p * 2 + 1, m + 1, r, ql, qr, tree))
+
+n, q = map(int, input("请输入元素个数 n 与查询数 q: ").split())
+a = [0] + list(map(int, input(f"请输入 {n} 个整数: ").split()))
+tree = [None] * (4 * n + 5)
+build(1, 1, n, a, tree)
+for _ in range(q):
+    l, r = map(int, input("查询区间 l r: ").split())
+    print(f"[{l},{r}] 的最大子段和: {query(1, 1, n, l, r, tree).best}")
+"""
+
+ex74 = [
+    {"diff": 3,
+     "q": "证明: 线段树的一次区间查询 [l, r] 访问的结点数为 O(log n)(给出「每层至多 4 个结点被访问」的论证); 并解释实现时为什么要把数组开到 4n 而不是 2n。",
+     "hint": "把递归访问的结点分为三类: 完全覆盖(直接返回)、完全不相交(剪枝)、部分相交(继续下探); 每层部分相交的结点至多 2 个, 分别贴着 l 与 r 两个边界。",
+     "ans": "**每层至多 4 个结点**: 一次查询从根下探, 递归树中每层只有两类「有后代被访问」的结点: 完全覆盖(整段返回, 不再下探)与部分相交(继续下探)。部分相交的结点必然与查询区间边界 l 或 r 「相交但未包含」——由于区间是连续的, 贴着左边界 l 的部分相交结点在同一层至多 1 个(它的兄弟要么完全在左侧被剪枝, 要么被完全覆盖), 贴着右边界 r 的同样至多 1 个; 再加上这两个部分相交结点各至多一个「被覆盖的兄弟」, 每层被访问结点 ≤ 4 个。层数 O(log n), 故总访问数 O(log n)。\n\n**为什么开 4n**: 线段树用 p*2 与 p*2+1 存储左右孩子, 当 n 不是 2 的幂时, 树的结点下标最大可达约 4n−5(例如 n = 6 时叶结点出现在第 3、4 层, 最右下结点下标为 15(大于 2n))。为保证下标不越界, 惯例直接分配 4n 空间(也顺带免去边界推导)。\n\n**复杂度结论**: 区间查询 O(log n) 时间; 建树 O(n), 单点修改 O(log n)。"},
+    {"diff": 4,
+     "q": "设计线段树支持「单点修改」与「区间 [l, r] 最大子段和」查询(允许子段为空时答案为 0 或按题意取负无穷, 请说明你的约定)。要求: 说明每个结点需维护的四个值及其合并规则, 分析复杂度, 并证明合并规则的正确性。",
+     "hint": "四个值: 区间和 sum、最大前缀 pre、最大后缀 suf、最大子段 best; 合并时 best 只有三种可能来源: 完全在左孩子、完全在右孩子、跨越左右分界。",
+     "ans": "**结点信息**: 对区间结点 x, 维护 sum(x) = 区间和; pre(x) = 区间内最大前缀和; suf(x) = 区间内最大后缀和; best(x) = 区间内最大子段和。约定: 允许空子段, 答案为 0; 若题目要求非空, 则把空子段对应的 0 换成负无穷并单独处理。\n\n**合并规则**(x 的左右孩子为 l, r):\n- sum(x) = sum(l) + sum(r);\n- pre(x) = max(pre(l), sum(l) + pre(r))——最大前缀要么全在左, 要么取整个左区间再接右区间的一段前缀;\n- suf(x) = max(suf(r), sum(r) + suf(l))——对称;\n- best(x) = max(best(l), best(r), suf(l) + pre(r))——最大子段要么在左、要么在右、要么跨越分界(左后缀 + 右前缀)。\n\n**正确性证明**: 任意子段 [i, j] ⊆ x 的区间: 若 i, j 都在左孩子或都在右孩子, 对应 best(l) 或 best(r); 若 i 在左孩子、j 在右孩子(即 i ≤ mid 且 j ≥ mid+1), 则它由「左孩子的一段后缀」+「右孩子的一段前缀」拼成, 最优跨界子段恰为 suf(l) + pre(r)。三类互斥覆盖全部子段, 故 best 合并正确; pre/suf 的合并同理用「是否跨界」二分论证。\n\n**复杂度**: 建树 O(n), 单点修改 O(log n)(重算路径上结点的四个值), 区间查询 O(log n)(对覆盖区间做与合并相同的 combine)。\n\n**要点**: 这种「结点存多个聚合值、合并规则由组合结构决定」的模式是线段树最核心的扩展方式, 区间 gcd、区间最大子段变体(带修改)均由此派生。"},
+    {"diff": 5,
+     "q": "对「区间加 + 区间和」的懒标记线段树, 给出完整的正确性证明: 定义并验证不变式(每个结点的 sum 恒等于其区间的真实和; lazy 的语义是该结点已应用但孩子尚未应用), 证明 build/add/query 三种操作保持不变式, 并证明区间加与区间查询的时间均为 O(log n)。",
+     "hint": "对操作次数做归纳; add 的「完全覆盖」分支直接改 sum 与 lazy 是合法的, 因为此时该结点就是「真实和」; pushdown 的正确性在于它把父的标记等量转给孩子并清空父标记; 复杂度论证用「每层至多 4 个结点」的查询分析推广到修改。",
+     "ans": "**不变式定义**: 对每个结点 v(区间 [l, r]):\n- (I1) sum(v) = a~l~ + a~l+1~ + … + a~r~(真实区间和, 包含所有已下传与未下传的修改);\n- (I2) 若 lazy(v) ≠ 0, 则表示区间 [l, r] 整体额外加过 lazy(v), 该增量**已计入 sum(v) 但未计入 v 的任何后代**。\n\n**build**: 自底向上, 叶子 sum = a~i~, 内部合并两孩子, 显然保持 (I1)(I2)(lazy 全 0)。\n\n**pushdown 保持性**: 设 pushdown 前 (I1)(I2) 成立且 lazy(v) = t ≠ 0。执行后: 孩子 sum += t·len(孩子)(正好补上「真实和」中缺失的 t·len), 孩子 lazy += t(标记下沉), v 的 lazy 清零且 sum(v) 不变(它已包含 t·len)。因为「v 区间的和」=「两孩子区间和之和」在 pushdown 前后都成立, 且每个叶子最终累计的增量正确, (I1)(I2) 保持。\n\n**add 保持性**: 递归分两种情形: ① 完全覆盖: sum(v) += v·len, lazy(v) += v——由 (I2) 语义, 这就是「把增量记在 v 上」, (I1) 保持; ② 部分覆盖: 先 pushdown(保证孩子信息真实), 递归修改孩子后重算 sum(v) = sum(l) + sum(r), 由归纳假设孩子正确, 故 v 正确。\n\n**query 保持性**: 查询不改变任何值; 递归前 pushdown 保证下探时孩子数据真实, 完全覆盖时返回的 sum(v) 由 (I1) 恰为真实和。\n\n**复杂度**: add/query 沿根到「完全覆盖边界」的路径下探, 每层至多 4 个结点被访问(论证同「区间查询每层 4 结点」, 修改同样按边界分叉), 每结点 O(1), 故均 O(log n)。\n\n**结论**: 不变式 (I1)(I2) 是懒标记正确性的完整刻画; 任何「打标记的修改操作」都必须满足「标记语义可下推、可叠加」, 否则懒标记失效。"}
+]
+
+# ==================== 7-5 树状数组 ====================
+t75 = """## lowbit 与树状数组结构
+
+**树状数组(Binary Indexed Tree / Fenwick Tree)** 用一个数组 c[1..n] 维护前缀信息, 核心是 **lowbit(x) = x & (−x)**: x 二进制中**最低位 1 对应的值**(如 6 = 110₂, lowbit(6) = 2)。由补码性质 −x = ~x + 1, 可证 x & (−x) 恰好取出最低位 1。c[i] 负责区间 [i − lowbit(i) + 1, i] 的聚合信息。
+
+- **单点更新 add(i, v)**: c[i] += v, 然后 i += lowbit(i), 直到 i 超过 n——O(log n);
+- **前缀查询 sum(x)**: 累加 c[x], 然后 x −= lowbit(x), 直到 x = 0——O(log n)。
+
+复杂度依据: 每步 x −= lowbit(x) 至少消去最低位的一个 1, 而 x ≤ n 至多有 ⌊log₂ n⌋ 个 1; add 每步使最低位 1 左移, 同样至多 log₂ n 步。
+
+## 区间加: 差分技巧
+
+对差分数组 d~i~ = a~i~ − a~i−1~ 建树: 「区间 [l, r] 整体加 v」等价于两个单点更新 d~l~ += v, d~r+1~ −= v; 单点查询 a~x~ = Σ~i≤x~ d~i~ 就是一次前缀和。于是「区间加 + 单点查」O(log n)。若要「区间加 + 区间和」, 需维护两个树状数组, 分别存 d~i~ 与 i·d~i~(见本节练习 3)。
+
+## 与线段树的对比
+
+- 代码量: 树状数组极短、常数小; 线段树长且易错;
+- 能力: 树状数组擅长「单点改 + 区间查」与「区间加 + 单点查」; 区间最值、任意区间修改组合需线段树;
+- 一般原则: 能 BIT 就不用线段树, 但别硬套。
+
+**易错点**: 下标必须从 1 开始(0 是哨兵, lowbit(0) = 0 会死循环); x & (−x) 的优先级; 差分建树时对每个 i 做一次 add(i, d~i~) 即可。"""
+
+c75 = r"""#include <stdio.h>
+#define MAXN 100005
+
+/* 双树状数组: BIT1 存差分 d_i, BIT2 存 i*d_i —— 实现「区间加 + 区间和」 */
+long long c1[MAXN], c2[MAXN];
+int n;
+
+int lowbit(int x) { return x & (-x); }
+
+void add(long long c[], int i, long long v) {   /* 单点更新: 向上传播 */
+    for (; i <= n; i += lowbit(i)) c[i] += v;
+}
+
+long long sum(long long c[], int i) {           /* 前缀和: 向左累加 */
+    long long s = 0;
+    for (; i > 0; i -= lowbit(i)) s += c[i];
+    return s;
+}
+
+void range_add(int l, int r, long long v) {     /* 区间 [l,r] 加 v: 差分两处更新 */
+    add(c1, l, v); add(c1, r + 1, -v);
+    add(c2, l, v * l); add(c2, r + 1, -v * (r + 1));   /* c2 存 i·d_i */
+}
+
+long long prefix(int x) {                       /* 前缀和 = (x+1)Σd_i − Σ(i·d_i) */
+    return (x + 1) * sum(c1, x) - sum(c2, x);
+}
+
+long long range_sum(int l, int r) { return prefix(r) - prefix(l - 1); }
+
+int main(void) {
+    int q, op, l, r;
+    long long v;
+    printf("请输入元素个数 n 与操作数 q: ");
+    if (scanf("%d %d", &n, &q) != 2 || n < 1 || n > MAXN) { printf("输入无效!\n"); return 1; }
+    printf("操作: 1 l r v 区间加 v; 2 l r 查询区间和\n");
+    while (q--) {
+        scanf("%d", &op);
+        if (op == 1) { scanf("%d %d %lld", &l, &r, &v); range_add(l, r, v); }
+        else { scanf("%d %d", &l, &r); printf("区间 [%d,%d] 的和 = %lld\n", l, r, range_sum(l, r)); }
+    }
+    return 0;
+}
+"""
+
+p75 = r"""# 树状数组: 单点更新 + 前缀和, 用于求逆序对 (O(n log n))
+class BIT:
+    def __init__(self, n):
+        self.n = n
+        self.c = [0] * (n + 1)
+
+    def add(self, i, v):            # 单点更新: 向上传播
+        while i <= self.n:
+            self.c[i] += v
+            i += i & (-i)           # i += lowbit(i)
+
+    def sum(self, i):               # 前缀和: 向左累加
+        s = 0
+        while i > 0:
+            s += self.c[i]
+            i -= i & (-i)           # i -= lowbit(i)
+        return s
+
+n = int(input("请输入元素个数 n: "))
+arr = list(map(int, input(f"请输入 {n} 个整数: ").split()))
+# 离散化: 数值 -> 排名(1..n), 相等元素取相同排名
+order = {v: i + 1 for i, v in enumerate(sorted(set(arr)))}
+bit = BIT(n)
+inv = 0
+for x in arr:
+    r = order[x]
+    inv += bit.sum(n) - bit.sum(r)  # 已插入且排名大于 r 的个数 = 逆序对数
+    bit.add(r, 1)
+print("逆序对数量:", inv)
+"""
+
+ex75 = [
+    {"diff": 3,
+     "q": "证明: (1) lowbit(x) = x & (−x) 恰好等于 x 的二进制表示中最低位 1 所对应的值; (2) 基于 lowbit 的前缀查询 sum(x) 与单点更新 add(i, v) 的循环次数均为 O(log n)。",
+     "hint": "用补码性质 −x = ~x + 1; sum 中每步 x −= lowbit(x) 会消去最低位的一个 1; add 中每步 i += lowbit(i) 会使最低位 1 的位置严格左移。",
+     "ans": "(1) 设 x 的二进制最低位 1 在第 k 位(从 0 计), 即 x = …1 0…0(低 k 位全 0)。−x = ~x + 1: ~x 的低 k 位全 1、第 k 位为 0, 加 1 后低 k 位回 0、第 k 位进位为 1, 更高位取反。因此 x 与 −x 只在第 k 位同为 1, 其余位相异或同为 0, 故 x & (−x) = 2^k ✓。\n\n(2) sum(x): 每步 x ← x − lowbit(x), 等价于把最低位 1 清零; x ≤ n 的二进制至多 ⌊log₂ n⌋ 个 1, 故至多 ⌊log₂ n⌋ + 1 步。add(i): 每步 i ← i + lowbit(i) 使最低位 1 左移至少一位(可验证: 加 lowbit 后低 k 位变 0, 第 k 位进位), 而 i ≤ n, 故至多 ⌊log₂ n⌋ + 1 步。两种操作均 O(log n) ✓。"},
+    {"diff": 4,
+     "q": "给定 n 个整数(可能含相等元素), 用树状数组求逆序对数量(满足位置 i 在 j 前且 a~i~ 大于 a~j~ 的 (i, j) 数)。要求说明: 离散化的具体做法、相等元素如何避免误计、整体复杂度, 并给出核心代码。数据规模 n ≤ 10^5, a~i~ ≤ 10^9。",
+     "hint": "按原顺序逐个处理: 先查询「已插入且大于当前值」的个数, 再插入当前值; 离散化把值域压到 1..n, 相等元素映射到同一排名, 查询时用「总数 − 前缀(含自己)」排除相等元素。",
+     "ans": "**思路**: 逆序对计数 = Σ~i~ (在 i 之前出现且大于 a~i~ 的元素个数)。用树状数组维护「各排名已出现的次数」, 处理到 a~i~ 时: 其排名为 r(离散化后), 已插入总数 = i−1, 其中 ≤ r 的个数 = sum(r), 故贡献 = (i−1) − sum(r); 然后 add(r, 1)。\n\n**离散化**: 对去重排序后的值建立 值→排名 映射, 相等元素取相同排名; 由于查询用「总数 − sum(r)」而不是「sum(n) − sum(r)」, 恰好把与自己相等的元素排除(它们 ≤ r 计入 sum(r)), 不会误计为逆序。\n\n**核心代码**:\n```python\norder = {v: i + 1 for i, v in enumerate(sorted(set(a)))}\nbit = BIT(n); ans = 0\nfor i, x in enumerate(a):\n    r = order[x]\n    ans += i - bit.sum(r)   # 之前的 i 个元素中比 x 大的个数\n    bit.add(r, 1)\n```\n\n**复杂度**: 离散化排序 O(n log n); 每个元素两次 O(log n) 的 BIT 操作; 总 **O(n log n)** 时间, O(n) 空间。\n\n**正确性**: 第 i 步贡献恰好是位置 i 参与的所有逆序对(i 作为右端点), 各步贡献互不重叠且覆盖全部逆序对。"},
+    {"diff": 4,
+     "q": "推导用两个树状数组实现「区间加 + 区间和」的公式: 设 d~i~ = a~i~ − a~i−1~ 为差分数组(d~1~ = a~1~), 证明 Σ~i=1..x~ a~i~ = (x+1)·Σ~i=1..x~ d~i~ − Σ~i=1..x~ i·d~i~; 说明两个 BIT 分别维护什么、区间加 [l, r] 如何转化为常数次单点更新。",
+     "hint": "把 Σ~i=1..x~ a~i~ 写成双重求和 Σ~i=1..x~ Σ~j=1..i~ d~j~, 交换求和顺序, 统计每个 d~j~ 被加了多少次(即 x − j + 1 次)。",
+     "ans": "**推导**: a~i~ = Σ~j=1..i~ d~j~, 故\n\n> Σ~i=1..x~ a~i~ = Σ~i=1..x~ Σ~j=1..i~ d~j~ = Σ~j=1..x~ d~j~ · (x − j + 1) = (x+1)·Σ~j=1..x~ d~j~ − Σ~j=1..x~ j·d~j~\n\n其中第二行是交换求和顺序: d~j~ 出现在所有 i ≥ j 的项中, 共 x − j + 1 次。\n\n**实现**: BIT1 维护 d~i~, BIT2 维护 i·d~i~; 则前缀和 prefix(x) = (x+1)·sum1(x) − sum2(x), 区间和 = prefix(r) − prefix(l−1)。\n\n**区间加 [l, r] 加 v**: 等价于 d~l~ += v, d~r+1~ −= v(注意 r+1 ≤ n 时才需要第二处)。对两个 BIT 各做两次单点更新: add1(l, v), add1(r+1, −v), add2(l, l·v), add2(r+1, −(r+1)·v)。\n\n**复杂度**: 区间加与区间和均为 O(log n)(常数次 BIT 操作), 空间 O(n)。\n\n**要点**: 「用差分把区间操作拆成单点操作, 再用第二个 BIT 抵消加权项」是 BIT 处理复杂区间操作的标准套路; 该技巧也可推广到矩阵(二维 BIT)等场景。"}
+]
+
+# ==================== 7-6 哈希表 ====================
+t76 = """## 散列思想与散列函数
+
+**哈希表**用散列函数 h 把键空间映射到表槽 [0, m−1], 使查找期望 O(1)。理想散列应均匀、快速、确定。常用两类:
+
+- **除法散列**: h(k) = k mod m。m 应取**不接近 2 的幂的素数**(如 10007): 若 m = 2^p, 则 h(k) 只保留 k 的低 p 位, 对齐的键(低若干位相同)会大量冲突;
+- **乘法散列**: h(k) = ⌊m·(k·A mod 1)⌋, A ≈ (√5−1)/2 ≈ 0.618。先取 k·A 的小数部分再乘 m 取整, 对 m 的取值不敏感, 分布更均匀。
+
+## 冲突处理
+
+- **链地址法**: 每个槽挂链表, 插入 O(1), 查找期望 O(1 + α), α = n/m 为**负载因子**;
+- **开放寻址**: 冲突时按探测序列找空槽(线性探测、二次探测、双重散列)。删除要打「墓碑」标记, 表接近满时性能骤降, 需**重哈希**扩容。开放寻址要求 α 远小于 1(工程上 ≤ 0.7)。
+
+## 负载因子与全域哈希
+
+负载因子 α 是性能核心: 链地址法 α 可大于 1; 开放寻址必须小。**全域哈希**: 对任意固定散列函数, 都存在让所有键冲突的坏输入。**全域哈希族** H 满足: 对任意 x ≠ y, Pr[h(x) = h(y)] ≤ 1/m(h 从 H 中均匀随机取)。于是任意输入下期望冲突数 ≤ α, 攻击者无法预知散列而构造坏输入。
+
+## 布隆过滤器
+
+位数组 + k 个独立散列: 插入把 k 个位置置 1, 查询要求 k 个位置全为 1。**无假阴性**(说不在就一定不在), 可能有**假阳性**(误报存在)。空间 O(n)、查询 O(k), 用于缓存穿透防护、去重等(误判率公式见 10-4)。
+
+**易错点**: 开放寻址不能物理删除; 扩容需重插全部元素; 负数键需先规整; 防御恶意输入要随机化散列。"""
+
+c76 = r"""#include <stdio.h>
+#include <stdlib.h>
+
+/* 链地址法哈希表: 除法散列 h(k)=k mod M, M 取素数(避开 2 的幂) */
+typedef struct Node { int key; struct Node *next; } Node;
+
+#define M 10007
+
+Node *table[M];
+
+int hash(int key) { return key % M; }
+
+void insert(int key) {
+    int h = hash(key);
+    Node *p = table[h];
+    while (p) { if (p->key == key) return; p = p->next; }  /* 已存在则跳过 */
+    Node *nd = (Node *)malloc(sizeof(Node));
+    nd->key = key; nd->next = table[h];
+    table[h] = nd;
+}
+
+int find(int key) {
+    Node *p = table[hash(key)];
+    while (p) { if (p->key == key) return 1; p = p->next; }
+    return 0;
+}
+
+int main(void) {
+    int n, q, x;
+    char op;
+    printf("请输入插入元素个数 n 与查询数 q: ");
+    if (scanf("%d %d", &n, &q) != 2 || n < 0 || n > 100000) { printf("输入无效!\n"); return 1; }
+    printf("请输入 %d 个要插入的整数: ", n);
+    for (int i = 0; i < n; i++) { scanf("%d", &x); insert(x); }
+    printf("接下来 %d 行: i x 插入; f x 查找\n", q);
+    while (q--) {
+        scanf(" %c %d", &op, &x);
+        if (op == 'i' || op == 'I') insert(x);
+        else printf("%d %s\n", x, find(x) ? "存在" : "不存在");
+    }
+    return 0;
+}
+"""
+
+p76 = r"""# 布隆过滤器: 位数组 + k 个散列函数(双重散列), 演示误判率
+import hashlib
+import random
+
+class BloomFilter:
+    def __init__(self, m, k):
+        self.m = m                  # 位数组大小
+        self.k = k                  # 散列函数个数
+        self.bits = [0] * m
+
+    def _hashes(self, item):
+        # 双重散列: h_i(x) = (h1 + i*h2) mod m, 只依赖两个基础散列
+        h1 = int(hashlib.md5(item.encode()).hexdigest(), 16) % self.m
+        h2 = int(hashlib.sha1(item.encode()).hexdigest(), 16) % self.m
+        if h2 == 0:
+            h2 = 1
+        return [(h1 + i * h2) % self.m for i in range(self.k)]
+
+    def add(self, item):
+        for h in self._hashes(item):
+            self.bits[h] = 1
+
+    def contains(self, item):
+        return all(self.bits[h] for h in self._hashes(item))
+
+n, m, k = map(int, input("请输入插入数 n、位数组大小 m、散列数 k: ").split())
+bf = BloomFilter(m, k)
+words = [f"word{i}" for i in range(n)]
+for w in words:
+    bf.add(w)
+hit = sum(1 for w in words if bf.contains(w))        # 已插入的应全部命中
+random.seed(2024)
+false = sum(1 for i in range(n) if bf.contains(f"rand{i}"))  # 未插入串的误判实验
+theory = (1 - (1 - 1 / m) ** (k * n)) ** k           # 理论误判率近似公式
+print(f"已插入 {n} 个词: 命中 {hit}/{n}")
+print(f"未插入 {n} 个随机词: 误判 {false} 个, 实测误判率 {false / n:.4f}")
+print(f"理论误判率 (1-e^(-kn/m))^k ≈ {theory:.4f}")
+"""
+
+ex76 = [
+    {"diff": 3,
+     "q": "设散列函数 h(k) = k mod m。(a) 若键是内存地址, 全部按 2^12 字节对齐(即低 12 位全 0), m = 2^10 时会发生什么? 请具体分析;(b) 若键是十进制整数且 m = 10, 会有什么问题?(c) 给定键集 {35, 49, 56, 63, 77} 与 m = 7, 计算散列分布并说明问题。综合给出 m 的选择原则。",
+     "hint": "模 2^p 只保留低 p 位; 十进制取模 10 只保留个位; 若 m 与键的固有因子重合(如 7 | 键), 则全部键冲突。",
+     "ans": "(a) h(k) = k mod 2^10 只保留 k 的低 10 位; 键低 12 位全 0 ⇒ 低 10 位恒为 0 ⇒ **所有键都映射到槽 0**, 完全退化。即使对齐位少于模数, 只要低 p 位模式相同, 键也会聚在同一小范围。\n\n(b) h(k) = k mod 10 只依赖个位数字, 至多 10 个不同的散列值, 大量键冲突; 若键恰以 0 结尾还会全落槽 0。\n\n(c) 35, 49, 56, 63, 77 除以 7 的余数分别为 0, 0, 0, 0, 0——**全部冲突**。原因: m = 7 与每个键共享因子 7, 而除法散列的分布完全由「键对 m 的余数」决定。\n\n**选择原则**: m 取**不接近 2 的幂的素数**(如 10007, 1000003): 素数避免与常见键模式(2 的幂、十进制尾数、算术级数)的因子重合; 不接近 2 的幂避免只保留低位。更进一步, 用**乘法散列**或**全域哈希**可彻底摆脱对 m 与键分布的依赖。"},
+    {"diff": 4,
+     "q": "用指示变量证明: 在**均匀散列**假设下, 链地址法哈希表的查找失败与查找成功的期望比较次数均为 O(1 + α), 其中 α = n/m 为负载因子。请分别推导, 并说明为什么「n 个不同键均匀落入 m 个槽」的假设不可或缺。",
+     "hint": "查找失败: 期望比较数 = 平均链长 = n/m = α; 查找成功: 第 j 个插入的元素, 其前面 j−1 个元素落入同一槽的概率各为 1/m, 用期望线性性求和再平均。",
+     "ans": "设 X~i~ = 槽 i 的链长, 则 Σ~i~ X~i~ = n。\n\n**查找失败**: 均匀散列下查询键等可能落入任一槽, 期望比较数 = (1/m)·Σ~i~ X~i~ = n/m = **α**。\n\n**查找成功**: 用指示变量。设插入顺序固定, 第 j 个插入的元素 e~j~, 定义 Y~ij~ = 1 表示 e~i~(i 在 j 前)与 e~j~ 同槽。均匀散列下 Pr[Y~ij~ = 1] = 1/m(不同键的槽位独立同分布)。查找 e~j~ 时, 期望比较数 = 1 + Σ~i=1..j−1~ E[Y~ij~] = 1 + (j−1)/m。对所有元素平均:\n\n> (1/n)·Σ~j=1..n~ (1 + (j−1)/m) = 1 + (n−1)/(2m) = 1 + α/2 − 1/(2m) = **O(1 + α)**\n\n**说明**: 证明两次用到「不同键落入各槽的概率均为 1/m 且互不影响」——这就是均匀散列假设。若散列函数有偏(如 h(k) = k mod 2 把所有键压到两个槽), 则平均链长可达到 Θ(n), 上述 O(1 + α) 结论失效; 这也是全域哈希「随机选 h」要保证的核心性质: 对**任意**键对, 碰撞概率 ≤ 1/m, 从而期望链长受控。"},
+    {"diff": 5,
+     "q": "设 p 为素数, m 小于 p, 定义散列族 H = {h~ab~ : Z~p~ → Z~m~, h~ab~(x) = ((a·x + b) mod p) mod m, a ∈ [1, p−1], b ∈ [0, p−1]}。证明 H 是**全域**的: 对任意 x ≠ y ∈ Z~p~, Pr[h~ab~(x) = h~ab~(y)] ≤ 1/m。",
+     "hint": "固定 x ≠ y。令 r = (ax + b) mod p, s = (ay + b) mod p。先证 (r, s) 随 (a, b) 均匀遍历所有 r ≠ s 的有序对(构造逆映射); 再数满足 r ≡ s (mod m) 的有序对个数, 用「对每个 r, 与之同余且不同的 s 至多 ⌈p/m⌉ − 1 个」。",
+     "ans": "**第一步: (r, s) 的分布**。固定 x ≠ y, 映射 (a, b) → (r, s) 其中 r = (ax+b) mod p, s = (ay+b) mod p。它是一一对应到集合 {(r, s) : r ≠ s}: 给定任意 r ≠ s, 由 r − s ≡ a(x−y) (mod p) 且 p ∤ (x−y) 唯一解出 a = (r−s)·(x−y)⁻¹ mod p, 再由 b ≡ r − ax (mod p) 唯一解出 b。由于 a ∈ [1, p−1], b ∈ [0, p−1] 共有 p(p−1) 个取值, (r, s) 恰好均匀分布于全部 p(p−1) 个 r ≠ s 的有序对。\n\n**第二步: 数碰撞对**。h~ab~(x) = h~ab~(y) ⟺ r ≡ s (mod m)。对固定的 r, 在 Z~p~ 中与 r 同余 (mod m) 的元素个数为 ⌈p/m⌉ 或 ⌊p/m⌋; 其中一个是 r 本身, 故满足 s ≠ r 且 s ≡ r (mod m) 的 s 至多 ⌈p/m⌉ − 1 ≤ (p−1)/m 个。因此碰撞有序对总数 ≤ p·(p−1)/m。\n\n**第三步: 概率**。均匀分布下, Pr = (碰撞对数) / (总对数) ≤ [p(p−1)/m] / [p(p−1)] = **1/m** ✓。\n\n**意义**: 全域性意味着「坏输入」与散列选择解耦——无论对手怎么选键, 只要 h 是从 H 中均匀随机取的, 期望冲突数 ≤ n²/(2m), 期望查找 O(1 + α); 攻击者无法提前构造针对特定 h 的冲突集合。"}
+]
+
+# ==================== 7-7 B 树与 B+ 树 ====================
+t77 = """## 动机: 磁盘 IO 与多路搜索
+
+内存访问纳秒级, 磁盘一次 IO 毫秒级, 差约 10⁶ 倍; 数据超内存时必须尽量减少**磁盘 IO 次数**。一次 IO 可读一整页(4KB~16KB), 二叉搜索树每层一次 IO, 10⁹ 个键需约 30 次; **多路搜索树**让每个结点容纳成百上千个键, 树高降到 3~4 层, 查询仅需几次 IO。
+
+## B 树的阶与性质
+
+**m 阶 B 树**(m ≥ 2, 每结点至多 m 个孩子)满足:
+
+1. 每个结点至多 m 个孩子、m−1 个键;
+2. 除根外每个结点至少 ⌈m/2⌉ 个孩子(根至少 2 个孩子, 除非它是叶子);
+3. 所有叶子在同一层(**完美平衡**);
+4. 结点内键有序, 键把子树区间严格划分。
+
+性质 2、3 推出高度 h ≤ 1 + log~⌈m/2⌉~((n+1)/2): n = 10⁹、m = 1001 时 h ≤ 4, 即查询至多 4 次磁盘 IO。
+
+## 插入与删除
+
+**插入**: 沿树下降到叶子, 键插入后若结点键数达到 m−1 则**分裂**: 把中间键提升到父结点, 左右两半成两个结点; 分裂可能逐级上传, 根分裂时树长高一层。**删除**: 若删除后结点键数不足则先向兄弟**借位**(父键下移、兄弟键上移), 兄弟也不足则与兄弟**合并**(父键下移); 合并可能上传, 根空时树矮一层。
+
+## B+ 树
+
+B+ 树与 B 树的区别: 内部结点**只存键做索引**, 数据全在叶子; 叶子用链表相连; 查找必须走到叶子。**范围查询**只需定位左端点后沿叶子链表顺序扫描, 一次 IO 读一页连续数据——这是数据库索引(MySQL InnoDB)、文件系统的首选结构。
+
+**易错点**: 分裂上提的是「中间键」不是副本(除 B+ 叶子); 借位/合并的边界条件最易写错; 内部结点键与孩子指针的对应关系(键 i 右侧子树存 ≥ 键 i 的键)要时刻清楚。"""
+
+c77 = r"""#include <stdio.h>
+#include <stdlib.h>
+
+/* B 树(最小度数 T=2, 即 2-3-4 树): 结点 1..3 个键, 2..4 个孩子 */
+#define T 2
+#define MAXK 2 * T - 1
+typedef struct BTNode { int n, key[MAXK], leaf; struct BTNode *child[MAXK + 1]; } BTNode;
+
+BTNode *new_node(int leaf) { BTNode *p = (BTNode *)calloc(1, sizeof(BTNode)); p->leaf = leaf; return p; }
+
+/* 分裂: x 的第 i 个孩子已满, 中间键上提, 一分为二 */
+void split_child(BTNode *x, int i) {
+    BTNode *y = x->child[i], *z = new_node(y->leaf);
+    z->n = T - 1;
+    for (int j = 0; j < T - 1; j++) z->key[j] = y->key[j + T];
+    if (!y->leaf) for (int j = 0; j < T; j++) z->child[j] = y->child[j + T];
+    y->n = T - 1;
+    for (int j = x->n; j > i; j--) { x->child[j + 1] = x->child[j]; x->key[j] = x->key[j - 1]; }
+    x->key[i] = y->key[T - 1];      /* 中间键上提 */
+    x->child[i + 1] = z;
+    x->n++;
+}
+
+void insert_nonfull(BTNode *x, int k) {
+    int i = x->n - 1;
+    if (x->leaf) {
+        while (i >= 0 && k < x->key[i]) { x->key[i + 1] = x->key[i]; i--; }
+        x->key[i + 1] = k;
+        x->n++;
+    } else {
+        while (i >= 0 && k < x->key[i]) i--;
+        i++;
+        if (x->child[i]->n == MAXK) { split_child(x, i); if (k > x->key[i]) i++; }
+        insert_nonfull(x->child[i], k);
+    }
+}
+
+BTNode *insert(BTNode *root, int k) {
+    if (root->n == MAXK) {            /* 根满则分裂, 树长高一层 */
+        BTNode *s = new_node(0);
+        s->child[0] = root;
+        split_child(s, 0);
+        insert_nonfull(s, k);
+        return s;
+    }
+    insert_nonfull(root, k);
+    return root;
+}
+
+int search(BTNode *x, int k) {
+    int i = 0;
+    while (i < x->n && k > x->key[i]) i++;
+    if (i < x->n && k == x->key[i]) return 1;
+    return x->leaf ? 0 : search(x->child[i], k);
+}
+
+void inorder(BTNode *x) {             /* 中序遍历: 有序输出全部键 */
+    if (!x) return;
+    for (int i = 0; i < x->n; i++) {
+        if (!x->leaf) inorder(x->child[i]);
+        printf("%d ", x->key[i]);
+    }
+    if (!x->leaf) inorder(x->child[x->n]);
+}
+
+int main(void) {
+    int n, k, q;
+    BTNode *root = new_node(1);
+    printf("请输入插入键的个数 n: ");
+    if (scanf("%d", &n) != 1 || n <= 0 || n > 100000) { printf("输入无效!\n"); return 1; }
+    printf("请输入 %d 个键(互不相同, 可乱序): ", n);
+    for (int i = 0; i < n; i++) { scanf("%d", &k); root = insert(root, k); }
+    printf("中序遍历(有序): ");
+    inorder(root);
+    printf("\n请输入查询数 q: ");
+    scanf("%d", &q);
+    while (q--) { scanf("%d", &k); printf("%d %s\n", k, search(root, k) ? "存在" : "不存在"); }
+    return 0;
+}
+"""
+
+p77 = r"""# B+ 树(最小度数 t=2): 内部结点只存索引键, 叶子存键并以链表相连 —— 支持范围查询
+class Leaf:
+    def __init__(self):
+        self.keys = []       # 叶子数据键(有序)
+        self.next = None     # 指向下一片叶子
+    def is_full(self, t):
+        return len(self.keys) == 2 * t - 1
+class Internal:
+    def __init__(self):
+        self.keys = []       # 索引键
+        self.children = []   # 孩子(比键多一个)
+    def is_full(self, t):
+        return len(self.keys) == 2 * t - 1
+class BPlusTree:
+    def __init__(self, t=2):
+        self.t = t
+        self.root = Leaf()
+    def _find_leaf(self, key):
+        node = self.root
+        while not isinstance(node, Leaf):
+            i = 0
+            while i < len(node.keys) and key >= node.keys[i]: i += 1
+            node = node.children[i]
+        return node
+    def insert(self, key):
+        if self.root.is_full(self.t):      # 根满: 先分裂, 树长高
+            nr = Internal()
+            nr.children = [self.root]
+            self._split_child(nr, 0)
+            self.root = nr
+        self._insert_nonfull(self.root, key)
+    def _split_child(self, parent, i):
+        t = self.t
+        child = parent.children[i]
+        if isinstance(child, Leaf):
+            # 叶子分裂: 左留前 t 个键, 右拿剩余, 分隔键「复制」上提
+            sep = child.keys[t]
+            right = Leaf()
+            right.keys = child.keys[t:]
+            right.next = child.next
+            child.keys = child.keys[:t]
+            child.next = right
+        else:
+            # 内部结点分裂: 中间键「移动」上提
+            sep = child.keys[t - 1]
+            right = Internal()
+            right.keys = child.keys[t:]
+            right.children = child.children[t:]
+            child.keys = child.keys[:t - 1]
+            child.children = child.children[:t]
+        parent.keys.insert(i, sep)
+        parent.children.insert(i + 1, right)
+    def _insert_nonfull(self, node, key):
+        if isinstance(node, Leaf):
+            pos = 0
+            while pos < len(node.keys) and node.keys[pos] < key: pos += 1
+            node.keys.insert(pos, key)     # 叶子内有序插入
+            return
+        i = 0
+        while i < len(node.keys) and key >= node.keys[i]: i += 1
+        child = node.children[i]
+        if child.is_full(self.t):
+            self._split_child(node, i)
+            if key >= node.keys[i]: i += 1
+        self._insert_nonfull(node.children[i], key)
+    def search(self, key):
+        return key in self._find_leaf(key).keys
+    def range_query(self, lo, hi):
+        # 定位左端点所在叶子, 再沿叶子链表顺序收集
+        node = self._find_leaf(lo)
+        res = []
+        while node:
+            for k in node.keys:
+                if lo <= k <= hi:
+                    res.append(k)
+            if node.keys and node.keys[-1] > hi:
+                break
+            node = node.next
+        return res
+n = int(input("请输入键的个数 n: "))
+keys = list(map(int, input(f"请输入 {n} 个键: ").split()))
+tree = BPlusTree(2)
+for k in keys: tree.insert(k)
+lo, hi = map(int, input("请输入范围查询 [lo, hi]: ").split())
+print("范围查询结果:", tree.range_query(lo, hi))
+"""
+
+ex77 = [
+    {"diff": 4,
+     "q": "证明: 含 n 个键的 m 阶 B 树(m ≥ 2)的高度 h 满足 h ≤ 1 + log~⌈m/2⌉~((n+1)/2)。并用该公式计算: n = 10⁹、m = 1001 时的高度上界, 以及由此得到的磁盘 IO 次数上界。",
+     "hint": "求「键数最少」的 B 树: 根至少 1 个键, 第 2 层至少 2 个结点, 之后每层至少 ⌈m/2⌉ 个; 每结点至少 ⌈m/2⌉−1 个键, 由此得到 n 的下界, 再反解 h。",
+     "ans": "**下界推导**: 设树高 h(根为第 1 层)。为让键数最少, 每个结点取最小键数: 根 ≥ 1 键; 第 2 层 ≥ 2 个结点, 每个 ≥ ⌈m/2⌉−1 键; 第 3 层 ≥ 2⌈m/2⌉ 个结点; …; 第 h 层 ≥ 2·⌈m/2⌉^(h−2) 个结点。故:\n\n> n ≥ 1 + 2(⌈m/2⌉−1)·Σ~i=0..h−2~ ⌈m/2⌉^i = 1 + 2(⌈m/2⌉^(h−1) − 1) = 2⌈m/2⌉^(h−1) − 1\n\n反解: ⌈m/2⌉^(h−1) ≤ (n+1)/2, 即 **h ≤ 1 + log~⌈m/2⌉~((n+1)/2)** ✓。\n\n**数值**: m = 1001 ⇒ ⌈m/2⌉ = 501; (10⁹+1)/2 ≈ 5×10⁸; log~501~(5×10⁸) = ln(5×10⁸)/ln 501 ≈ 20.03/6.22 ≈ 3.22; 故 h ≤ 4.22, 即 h ≤ 4。\n\n**IO 次数**: 查询从根走到叶子经过至多 4 个结点, 每层一次磁盘 IO(读一页), 故等值查询至多 **4 次 IO**; 而同样数据量的二叉搜索树需约 30 次 IO。这就是数据库用 B 树系结构的原因。"},
+    {"diff": 4,
+     "q": "对一棵 4 阶 B 树(即 2-3-4 树, 非根结点 1..3 个键), 初始为: 根 [6, 9]; 左孩子 [2, 4](其孩子为叶子 [1], [3], [5]); 中孩子 [7, 8]; 右孩子 [10, 11]。依次执行删除 5、删除 2, 逐步说明每次删除触发的**借位**或**合并**过程(含父键的移动), 并说明删除可能导致根收缩的情形。",
+     "hint": "删除分两类: 删除叶子中的键直接删; 删除内部结点中的键用前驱/后继替换后再删叶子中的对应键。下溢判定: 4 阶树非根结点至少 1 个键; 借位优先于合并(兄弟键数 ≥ 2 才能借)。",
+     "ans": "**删 5**(在叶子 [5] 中): 直接删除后叶子变空(0 键, 少于 4 阶树的最小键数 1), 下溢。先尝试借位: 左兄弟 [3] 只有 1 键(不能借, 借后自己也下溢), 右兄弟 [7, 8] 有 2 键可以借。借位规则: 父键 6 下移进 [5] 的位置, 兄弟最小键 7 上移进父。结果: 叶子 [5] 变 [6], 兄弟 [7, 8] 变 [8], 父 [6, 9] 变 [7, 9]。\n\n**删 2**(在内部结点 [2, 4] 中): 删除内部键需用后继替换: 2 的右子树(叶子 [3])最小键 3 上移代替 2, 然后删除叶子 [3] 中的 3。删 3 后叶子 [3] 空, 下溢。此时左兄弟 [1] 只有 1 键, 右兄弟 [6] 也只有 1 键——都不能借, 只能**合并**: 与左兄弟 [1] 合并, 父键 4 下移: 新叶子 [1, 4](1 + 4 + 空 = [1, 4]), 父 [2, 4] 删除 4 后变 [2](等等, 2 已被 3 替换)——完整描述: 替换后父为 [3, 4], 删 3 引发合并, 父键 4 下移, 父变 [3]? 严谨地: 内部键 2 被后继 3 替换后父为 [3, 4]; 删除叶子中的 3 使其下溢, 与左兄弟 [1] 合并 + 父键 4 下移 ⇒ 新叶子 [1, 4], 父变 [3](1 键 ≥ 1 ✓)。\n\n**根收缩情形**: 若删除连锁导致根只剩 1 个孩子(根从 [3] 变成只有唯一孩子), 则把该孩子提升为新根, 树矮一层——这正是 B 树高度只随分裂/合并上下浮动的机制。\n\n**要点**: 借位是「父键下移、兄弟键上移」的三方轮转, 合并是「兄弟键 + 父键 + 本结点键」三方合一; 合并后父键数减一, 可能继续触发父的下溢, 形成上传链。"},
+    {"diff": 5,
+     "q": "数据库系统普遍用 B+ 树而不用 B 树作索引。设页大小 16KB, 键与指针各 8 字节, 每条记录 128 字节(数据不内联, 均通过指针引用), 表含 10⁹ 条记录。定量分析: (1) 两种树的内部结点扇出与树高; (2) 等值查询与「取 10⁴ 条连续记录」的范围查询各需要多少次磁盘 IO(假设叶子页可装 128 条记录, 忽略缓存); (3) 总结 B+ 树的优势及适用边界。",
+     "hint": "扇出 = 页大小 / 每条目字节数; B 树内部结点条目 = 键+数据指针(16B), B+ 树内部条目 = 键+孩子指针(16B)——两者条目大小相同, 差异在「范围查询的访问模式」与「叶子是否连续」; 但若 B 树把数据内联在内部结点, 扇出会骤降, 请一并讨论。",
+     "ans": "(1) **扇出与树高**: 内部结点条目 16 字节(键 8B + 指针 8B), 每页 16KB ⇒ 扇出 f ≈ 16384/16 = 1024。B+ 树数据全在叶子, 内部只存索引, 树高 h ≈ log~1024~(10⁹) ≈ 3(即根 + 2 层内部 + 1 层叶子 ≈ 3~4 层)。B 树若不内联数据(数据指针 8B), 扇出同为 1024, 树高相同; 但 B 树若把 128B 记录直接放进内部结点, 每条目 136B ⇒ 扇出 ≈ 120, 树高 ≈ log~120~(10⁹) ≈ 4.3, 多一层 IO。\n\n(2) **等值查询**: 两者均约 3~4 次 IO(逐层读一页), 基本持平。**范围查询(10⁴ 条)**: B+ 树先 3 次 IO 定位左端点所在叶子, 再沿叶子链表顺序读: 每页 16KB/128B = 128 条, 10⁴ 条需约 78 页, 全部**顺序 IO** ≈ 3 + 78 = 81 次; B 树范围查询需对左右边界各做一次根叶路径(约 6~8 次 IO), 再对中序区间逐结点访问——中间结点散落在不同页, 每次 IO 只能取回少量记录, IO 次数比 B+ 树多一个数量级且多为**随机 IO**。\n\n(3) **结论**: B+ 树①内部结点不存数据, 相同页大小下扇出更大/树更矮; ②叶子链表使范围查询与全表扫描退化为顺序 IO, 磁盘顺序读比随机读快 10 倍以上; ③数据只在叶子, 便于页级预读与压缩。适用边界: 对纯点查询、内存索引(如跳表、红黑树)或需在内部结点直接返回数据的场景, B+ 树的优势缩小; 但面向磁盘的数据库索引, B+ 树是压倒性选择。"}
+]
+
+ch7 = {
+    "id": "ch07", "order": 7,
+    "title": "高级数据结构",
+    "subtitle": "并查集、平衡树、线段树、哈希表与 B 树。",
+    "icon": "🏗️",
+    "sections": [
+        S("7-1", "并查集", ["并查集", "路径压缩", "按秩合并", "反阿克曼函数", "动态连通性", "Kruskal"],
+          "支持合并与查询的集合数据结构: 路径压缩与按秩合并, 近常数复杂度与典型应用。",
+          t71, [
+            "并查集维护不相交集合, 支持 find 与 union, 用树+父指针实现",
+            "路径压缩把沿途结点挂到根, 按秩合并保证树高 O(log n)",
+            "两者结合后 m 次操作 O(m·α(n)), α(n) 为反阿克曼函数(实际 ≤ 5)",
+            "应用: Kruskal 最小生成树、动态连通性、离线 LCA",
+            "union 前必须先 find; 秩不是实时深度"
+          ],
+          [{"lang": "c", "name": "并查集(路径压缩+按秩合并)", "desc": "输入 n q, 再输入 q 行操作(1 a b 合并; 2 a b 查询连通)。示例输入: 5 4 → 1 1 2, 2 1 2, 1 2 3, 2 1 3 → 输出: 1 与 2 连通 / 1 与 3 连通", "code": c71},
+           {"lang": "python", "name": "并查集(路径压缩+按秩合并)", "desc": "输入 n q, 再输入 q 行操作(1 a b 合并; 2 a b 查询连通)。示例输入: 5 4 → 1 1 2, 2 1 2, 1 2 3, 2 1 3 → 输出: 1 与 2 连通 / 1 与 3 连通", "code": p71}],
+          ex71),
+        S("7-2", "平衡二叉搜索树", ["AVL树", "红黑树", "平衡二叉搜索树", "旋转", "平衡因子"],
+          "BST 的退化问题与 AVL/红黑树两种平衡方案: 旋转、性质与操作。",
+          t72, [
+            "BST 在有序插入下退化为链, 需要平衡化",
+            "AVL: |平衡因子| ≤ 1, 四种旋转 LL/RR/LR/RL, 高度 ≤ 1.44·log₂(n+2)",
+            "红黑树五条性质, 红不连红+黑高相等 ⇒ 高度 ≤ 2·log₂(n+1)",
+            "旋转不改变中序顺序, 插入至多一次(双)旋转",
+            "AVL 查询快, 红黑树插入删除常数小"
+          ],
+          [{"lang": "c", "name": "AVL 树插入(四种旋转)", "desc": "输入 n 与 n 个整数, 依次插入 AVL 树并输出中序遍历与树高。示例输入: 10 → 3 2 1 4 5 6 7 10 9 8 → 中序遍历 1 2 3 4 5 6 7 8 9 10, 树高 4", "code": c72},
+           {"lang": "python", "name": "AVL 树插入(四种旋转)", "desc": "输入 n 与 n 个整数, 依次插入 AVL 树并输出中序遍历与树高。示例输入: 7 → 1 2 3 4 5 6 7 → 中序遍历 [1,2,3,4,5,6,7], 树高 3", "code": p72}],
+          ex72),
+        S("7-3", "堆与优先队列", ["二叉堆", "上滤", "下滤", "建堆", "堆排序", "优先队列"],
+          "二叉堆的上滤/下滤、O(n) 建堆、堆排序与优先队列应用。",
+          t73, [
+            "二叉堆是完全二叉树, 数组 1..n 存储, 父 ≥ 子(大根堆)",
+            "插入=上滤 O(log n), 删顶=下滤 O(log n)",
+            "自底向上建堆 O(n): Σ h·n/2^(h+1) = O(n)",
+            "堆排序 O(n log n), 原地、不稳定",
+            "优先队列: 插入/删极值 O(log n), 取极值 O(1)"
+          ],
+          [{"lang": "c", "name": "堆排序(建堆+下滤)", "desc": "输入 n 与 n 个整数, 输出堆排序结果。示例输入: 6 → 5 3 8 1 9 2 → 输出: 1 2 3 5 8 9", "code": c73},
+           {"lang": "python", "name": "小根堆与 Top-K", "desc": "输入 n k 与 n 个整数, 用大小为 k 的小根堆求最大的 k 个。示例输入: 6 3 → 5 3 8 1 9 2 → 输出: [9, 8, 5]", "code": p73}],
+          ex73),
+        S("7-4", "线段树", ["线段树", "懒标记", "区间查询", "单点修改", "逆序对"],
+          "线段树: 单点修改、区间查询与懒标记区间修改, 全部 O(log n)。",
+          t74, [
+            "线段树是区间二叉树, 结点存区间聚合信息, 建树 O(n)",
+            "单点修改与区间查询均 O(log n), 每层至多 4 个结点",
+            "懒标记: 完全覆盖时打标不深入, 下推时再更新孩子",
+            "应用: 区间和/最值/最大子段和、逆序对、扫描线",
+            "数组开 4n; 完全覆盖判断 ql ≤ l 且 r ≤ qr"
+          ],
+          [{"lang": "c", "name": "线段树(区间加+懒标记+区间和)", "desc": "输入 n q 与 n 个整数, 再输入 q 行操作(1 l r v 区间加; 2 l r 查询和)。示例输入: 5 3 → 1 2 3 4 5 → 1 1 3 5, 2 2 4, 2 1 5 → 输出: 区间 [2,4] 的和: 19 / 区间 [1,5] 的和: 30", "code": c74},
+           {"lang": "python", "name": "线段树(区间最大子段和)", "desc": "输入 n q 与 n 个整数, 再输入 q 行区间 l r, 输出各区间最大子段和。示例输入: 5 2 → -2 1 -3 4 -1 → 1 3, 1 5 → 输出: 1 / 4", "code": p74}],
+          ex74),
+        S("7-5", "树状数组", ["树状数组", "lowbit", "前缀和", "差分", "Fenwick"],
+          "树状数组: lowbit 技巧、前缀和/单点更新、差分区间加与线段树对比。",
+          t75, [
+            "lowbit(x) = x & (−x) 是最低位 1 的值, 由补码性质保证",
+            "单点更新向上传播、前缀和向左累加, 均 O(log n)",
+            "差分数组把区间加变成两个单点更新: 区间加+单点查 O(log n)",
+            "区间加+区间和需两个 BIT(存 d_i 与 i·d_i)",
+            "BIT 代码短常数小, 但区间最值等需线段树"
+          ],
+          [{"lang": "c", "name": "树状数组(双BIT: 区间加+区间和)", "desc": "输入 n q, 再输入 q 行操作(1 l r v 区间加; 2 l r 区间和)。示例输入: 5 4 → 1 1 3 2, 2 2 4, 1 2 5 1, 2 1 5 → 输出: 区间 [2,4] 的和 = 4 / 区间 [1,5] 的和 = 10", "code": c75},
+           {"lang": "python", "name": "树状数组求逆序对", "desc": "输入 n 与 n 个整数, 输出逆序对数量(离散化+BIT)。示例输入: 6 → 3 1 4 1 5 9 → 输出: 2", "code": p75}],
+          ex75),
+        S("7-6", "哈希表", ["哈希表", "散列函数", "链地址法", "开放寻址", "负载因子", "全域哈希", "布隆过滤器"],
+          "散列函数、冲突处理、负载因子、全域哈希与布隆过滤器。",
+          t76, [
+            "除法散列 m 取不接近 2 的幂的素数; 乘法散列用黄金分割比",
+            "链地址法期望 O(1+α); 开放寻址 α ≤ 0.7, 删除用墓碑",
+            "负载因子 α = n/m 决定期望性能",
+            "全域哈希: 随机选 h, 任意输入下期望冲突 ≤ α, 防恶意构造",
+            "布隆过滤器无假阴性、有假阳性, 不能删除"
+          ],
+          [{"lang": "c", "name": "链地址法哈希表", "desc": "输入 n q, 输入 n 个待插入整数, 再输入 q 行(i x 插入; f x 查找)。示例输入: 3 4 → 5 10 15 → i 7, f 5, f 6, f 20 → 输出: 5 存在 / 6 不存在 / 20 不存在", "code": c76},
+           {"lang": "python", "name": "布隆过滤器与误判率实验", "desc": "输入 n m k(插入数/位数组大小/散列数), 插入 n 个串后统计命中与未插入串的误判率, 并与理论公式对比。示例输入: 1000 8000 3 → 命中 1000/1000, 误判率 ≈ 0.03", "code": p76}],
+          ex76),
+        S("7-7", "B 树与 B+ 树", ["B树", "B+树", "多路搜索树", "磁盘IO", "分裂", "合并"],
+          "B 树与 B+ 树: 磁盘 IO 动机、阶与性质、插入删除的分裂合并。",
+          t77, [
+            "磁盘 IO 慢内存约 10⁶ 倍, 多路搜索树把树高压到 3~4 层",
+            "m 阶 B 树: 非根结点 ⌈m/2⌉~m 个孩子, 叶子同层, 高度 ≤ 1+log((n+1)/2)",
+            "插入分裂(中间键上提), 删除借位/合并, 可沿路径上传",
+            "B+ 树内部只存键、数据在叶子、叶子链表相连, 范围查询顺序 IO",
+            "数据库索引与文件系统首选 B+ 树"
+          ],
+          [{"lang": "c", "name": "B 树(2-3-4 树)插入与查找", "desc": "输入 n 个互异键构建 2-3-4 树(含分裂), 输出中序遍历, 再输入 q 与 q 个查询键。示例输入: 7 → 5 3 7 1 4 6 8 → 中序遍历 1 3 4 5 6 7 8; 查询 2 → 4, 9 → 4 存在 / 9 不存在", "code": c77},
+           {"lang": "python", "name": "B+ 树插入与范围查询", "desc": "输入 n 个键构建 B+ 树(叶子链表), 再输入 lo hi 输出范围查询结果。示例输入: 8 → 5 3 7 1 4 6 8 2 → 范围 3 7 → 输出: [3, 4, 5, 6, 7]", "code": p77}],
+          ex77),
+    ]
+}
+
+os.makedirs(os.path.dirname(OUT), exist_ok=True)
+with io.open(OUT, "w", encoding="utf-8") as f:
+    json.dump(ch7, f, ensure_ascii=False, indent=1)
+
+# ---- 自查: theory 字数(不含空白), 代码行数, diff 分布 ----
+def nchars(s):
+    return len(re.sub(r"\s", "", s))
+
+for sec in ch7["sections"]:
+    print(sec["id"], "theory字数:", nchars(sec["theory"]), "| codes行数:",
+          [len(c["code"].splitlines()) for c in sec["codes"]],
+          "| diffs:", [e["diff"] for e in sec["exercises"]])
+print("written:", os.path.abspath(OUT), "sections:", len(ch7["sections"]))

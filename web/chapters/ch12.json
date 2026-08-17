@@ -1,0 +1,228 @@
+{
+ "id": "ch12",
+ "order": 12,
+ "title": "摊还分析",
+ "subtitle": "聚合分析、记账法与势能法: 动态表与平摊界。",
+ "icon": "⚖️",
+ "sections": [
+  {
+   "id": "12-1",
+   "title": "摊还分析思想",
+   "keywords": [
+    "摊还分析",
+    "聚合分析",
+    "记账法",
+    "势能法",
+    "平摊代价",
+    "操作序列"
+   ],
+   "desc": "摊还分析的思想: 对任意操作序列给出平均代价上界, 三种方法概览与平均情况分析的区别。",
+   "theory": "**为什么需要摊还分析** 某些数据结构中, 单次操作可能很贵, 但**任意**连续操作序列的总代价却很小。摊还分析(Amortized Analysis)针对「操作序列」给出**平均到每次操作**的代价上界。例: 栈的 MULTIPOP(k) 一次弹出 min(k, 栈大小) 个元素, 单次最坏 O(n); 但任意 n 次 PUSH/POP/MULTIPOP 序列的总代价 O(n)——每个元素至多被压入一次、弹出一次, 摊还代价 O(1)。\n\n## 与平均情况分析的区别\n\n平均情况分析对输入或操作假设概率分布, 求期望代价; 摊还分析**不依赖任何概率假设**, 对**最坏的操作序列**也给出确定性总代价上界。平均分析回答「随机输入下平均多少」, 摊还回答「最坏序列平均到每次操作多少」——后者是更强的保证。\n\n## 三种方法概览\n\n设 n 次操作实际代价为 c₁..c~n~, 摊还代价为 ĉ₁..ĉ~n~, 满足 Σĉ~i~ ≥ Σc~i~:\n\n1. **聚合分析(Aggregate)**: 直接求总代价 T(n), 摊还 = T(n)/n, 所有操作共用一个上界;\n2. **记账法(Accounting)**: 为每类操作分配记账代价, 贵的操作用之前「存款」支付, 信用余额恒非负 ⇒ 总记账 ≥ 总实际代价;\n3. **势能法(Potential)**: 定义势函数 Φ(状态), 平摊代价 ĉ~i~ = c~i~ + ΔΦ~i~, 只要 Φ ≥ Φ₀, 总平摊 ≥ 总实际。\n\n三种方法是同一思想的三副面孔: 聚合分析直接数总代价; 记账法把代价显式「预存」到对象上(信用即势能); 势能法用状态函数统一刻画存款——记账法是势能法的特例, 势能法最灵活、最强大, 也是 12-3 的重点。它们都能给出动态表、斐波那契堆、伸展树的平摊界, 只是视角不同。\n\n## 要点\n\n摊还分析不改变算法, 只是**分析工具**; 它不承诺单次操作快(单次仍可能 O(n)), 只保证**序列总代价**的上界——这在分析动态表、斐波那契堆、伸展树等数据结构时是决定性的。本节的案例代码用实验直观验证两个经典结论: 栈 MULTIPOP 的 n 次操作总代价 ≤ 2n, 二进制计数器 k 次 INCREMENT 总翻转 ≤ 2k。",
+   "keyPoints": [
+    "摊还分析: 对任意(最坏)操作序列的总代价求平均上界, 不依赖概率分布",
+    "与平均情况分析的区别: 摊还是确定性保证, 平均依赖分布假设",
+    "聚合分析: 总代价 T(n) 除以 n, 所有操作共用一个上界",
+    "记账法: 存款/信用支付贵操作, 信用余额非负 ⇒ 总记账 ≥ 总代价",
+    "势能法: ĉ_i = c_i + ΔΦ_i, Φ ≥ Φ₀ 时 Σĉ ≥ Σc; 不改变算法本身"
+   ],
+   "codes": [
+    {
+     "lang": "c",
+     "name": "栈 MULTIPOP 聚合分析实验",
+     "desc": "输入操作次数 n(如 100000), 随机生成 PUSH/POP/MULTIPOP 序列, 统计总代价并验证 ≤ 2n。示例: 输入 100000 → 总代价 ≤ 200000(是)",
+     "code": "#include <stdio.h>\n#include <stdlib.h>\n#include <time.h>\n\n/* 摊还分析实验: 栈 MULTIPOP —— n 次混合操作的总代价 <= 2n, 平摊 O(1)\n * 每个元素至多被压入 1 次、弹出 1 次, 故总代价 <= 2n 恒成立 */\n#define MAXN 100000\nint st[MAXN];\n\nint main(void) {\n    int n, top = 0;\n    long long total = 0;\n    srand((unsigned)time(NULL));\n    printf(\"输入操作次数 n (<= 100000): \");\n    if (scanf(\"%d\", &n) != 1 || n <= 0 || n > MAXN) { printf(\"输入无效!\\n\"); return 1; }\n    for (int i = 0; i < n; i++) {\n        int op = rand() % 3;               /* 0=PUSH 1=POP 2=MULTIPOP */\n        if (op == 0) { st[top++] = i; total += 1; }   /* PUSH 代价 1 */\n        else if (op == 1) {\n            if (top > 0) top--;\n            total += 1;                    /* POP 代价 1(空栈也计 1) */\n        } else {\n            int k = rand() % 10 + 1;       /* MULTIPOP(k): 弹出 min(k, top) */\n            int c = k < top ? k : top;\n            top -= c;\n            total += c;                    /* 实际代价 = 弹出个数 */\n        }\n    }\n    printf(\"操作次数 n = %d, 总代价 = %lld, 平均 = %.2f\\n\", n, total, (double)total / n);\n    printf(\"上界 2n = %d, 总代价 <= 2n: %s\\n\", 2 * n, total <= 2LL * n ? \"是\" : \"否\");\n    return 0;\n}\n"
+    },
+    {
+     "lang": "python",
+     "name": "二进制计数器聚合分析实验",
+     "desc": "输入递增次数 k(如 100000), 统计 k 次 INCREMENT 的总翻转位数并验证 ≤ 2k。示例: 输入 100000 → 满足 total ≤ 2k(True)",
+     "code": "# 聚合分析实验: 二进制计数器 —— k 次 INCREMENT 总翻转位数 <= 2k\nimport sys\n\ndef main():\n    data = sys.stdin.read().split()\n    k = int(data[0])\n    bits = [0] * (k.bit_length() + 1)     # 二进制位, 低位在前\n    total = 0\n    for _ in range(k):\n        flips = 0\n        i = 0\n        while bits[i] == 1:               # 从低位起翻转连续的 1\n            bits[i] = 0\n            flips += 1\n            i += 1\n        bits[i] = 1                       # 最近的 0 变 1\n        flips += 1\n        total += flips\n    print(f\"k = {k}, 总翻转次数 = {total}, 上界 2k = {2 * k}\")\n    print(f\"满足 total <= 2k: {total <= 2 * k}\")\n\nmain()\n"
+    }
+   ],
+   "exercises": [
+    {
+     "diff": 3,
+     "q": "说明摊还分析与平均情况分析的区别; 并用栈的 MULTIPOP 论证: 为什么「任意 n 次操作总代价 O(n)」比「每次操作平均 O(1)」更强?",
+     "hint": "平均需要概率分布假设; 摊还对最坏序列成立; 栈的例子: 每个元素至多一进一出。",
+     "ans": "**区别**: 平均情况分析对输入/操作假设概率分布, 求期望代价, 结论依赖分布假设; 摊还分析不依赖任何概率假设, 对**任意**操作序列给出确定性总代价上界。\n\n**MULTIPOP 论证**: 单次 MULTIPOP(k) 最坏代价 O(n)(栈满时弹出 n 个元素); 但任意 n 次 PUSH/POP/MULTIPOP 序列中, 每个元素至多被压入一次、弹出一次, 总代价 ≤ 2·(压入次数) ≤ 2n, 故摊还 O(1)。\n\n**为什么更强**: 「平均 O(1)」若指平均情况, 只保证随机/典型序列; 摊还 O(1) 对**最坏序列**也成立——不存在任何 n 次操作序列能让总代价超过 O(n)。摊还是确定性保证, 平均是概率保证, 前者严格更强。"
+    },
+    {
+     "diff": 4,
+     "q": "操作序列: 第 i 次操作的代价 c~i~ = i(当 i 是 2 的幂), 否则 c~i~ = 1。求 n 次操作总代价的渐近紧上界与每次操作的平摊代价。",
+     "hint": "2 的幂共 ⌊log₂n⌋+1 个, 其代价之和为等比级数; 其余操作代价为 1。",
+     "ans": "**思路**: 昂贵操作总数只有 O(log n) 个, 关键是其代价之和仍是 O(n)。\n\n**计算**: 总代价 = Σ~i=1..n~ c~i~ = n + Σ~j: 2^j ≤ n~ (2^j − 1) ≤ n + Σ~j=0..⌊log₂n⌋~ 2^j = n + (2^(⌊log₂n⌋+1) − 1) 小于 n + 2n = **3n**。\n\n**结论**: 总代价 O(n), 平摊代价 O(1)。\n\n**要点**: 2 的幂位置只有 ⌊log₂n⌋+1 个, 等比级数和小于 2n——「少量昂贵的 2 的幂操作」与「大量 O(1) 操作」的总和仍是 O(n), 这是摊还分析的典型结构: 单次可达 O(n), 但整体线性。"
+    },
+    {
+     "diff": 5,
+     "q": "两个栈实现队列: 栈 S₁ 用于入队, 栈 S₂ 用于出队; 出队时若 S₂ 为空, 先把 S₁ 中全部元素弹出并压入 S₂, 再从 S₂ 弹出一个。用聚合分析证明 m 次 ENQUEUE/DEQUEUE 操作的总代价为 O(m)。",
+     "hint": "追踪每个元素的「一生」: 入 S₁ 一次、被倒栈一次(pop S₁ + push S₂)、出 S₂ 一次——每个元素被移动的次数有常数上界。",
+     "ans": "**思路**: 单次 DEQUEUE 在最坏情形(S₂ 空且 S₁ 满)代价可达 Θ(m), 但倒栈把 S₁ 的 t 个元素一次性转移, 摊到 t 个元素上每个只增加常数代价。\n\n**聚合分析**: 设栈操作(压入/弹出)代价为 1。追踪每个元素: ① ENQUEUE 时 push 进 S₁, 1 次; ② 若该元素在被 DEQUEUE 前经历了倒栈, pop S₁ + push S₂, 2 次; ③ DEQUEUE 时 pop S₂, 1 次。每个元素至多贡献 1 + 2 + 1 = 4 次栈操作, m 次操作产生的元素总数 ≤ m, 故总代价 ≤ 4m + m(每次操作本身的常数开销) = O(m)。\n\n**结论**: 总代价 O(m), ENQUEUE 与 DEQUEUE 均平摊 O(1)。\n\n**要点**: 倒栈的「一次性大代价」被 t 个元素分摊——每个元素恰好被倒一次, 这是聚合分析的典型手法: 找到每个「基本对象」被处理的次数上界。"
+    }
+   ]
+  },
+  {
+   "id": "12-2",
+   "title": "聚合分析与记账法",
+   "keywords": [
+    "聚合分析",
+    "记账法",
+    "信用",
+    "MULTIPOP",
+    "二进制计数器"
+   ],
+   "desc": "聚合分析(栈 MULTIPOP、二进制计数器总代价)与记账法(存/取信用)的原理与实例。",
+   "theory": "**聚合分析** 把 n 次操作整体看待, 求总代价 T(n), 摊还 = T(n)/n, 所有操作共用一个上界。\n\n例 1(栈 MULTIPOP): 每个元素至多入栈一次、出栈一次, 任意 n 次操作总代价 ≤ 2n, 摊还 O(1)。\n\n例 2(二进制计数器): 从 0 开始 INCREMENT k 次, 第 t 次翻转位数 = 1 + (t 的二进制末尾连续 1 的个数); 总翻转 = k + Σ~j≥1~ ⌊k/2^j⌋ ≤ k + k = **2k**, 摊还 O(1)。求和依据: 第 j 位(值 2^j)在 k 次递增中每 2^j 次翻转一次, 共 ⌊k/2^j⌋ 次; 对 j 求和得 Σ ⌊k/2^j⌋ ≤ k(等比级数)。聚合分析简单直接, 但给所有操作同一上界, 粒度粗——无法区分哪些操作贵。\n\n## 记账法\n\n给每类操作分配**记账代价**(可大于实际代价), 要求: 对任意操作前缀, 记账总额 ≥ 实际总额, 即「信用余额」恒非负。于是总记账是总实际代价的上界, 记账代价即平摊上界。关键技巧: 为将来可能发生的昂贵操作**预先存款**——把「未来账单」摊到产生该账单的操作上, 与聚合分析「事后数总账」正好相反。\n\n## 例: 栈\n\nPUSH 记账 2——1 元支付本次压栈, 1 元作为该元素的信用存入; POP 记账 0, MULTIPOP(k) 记账 0——弹出一个元素就用该元素存的 1 元支付。每个元素存 1 元、恰被弹出一次, 信用恒 ≥ 0; 总记账 ≤ 2·(PUSH 次数) ≤ 2n, 平摊 O(1)。\n\n## 例: 二进制计数器\n\nINCREMENT 记账 2: 翻转 0→1 的位付 1 元并给该位存 1 元(供将来 1→0 时支取); 翻转 1→0 的位用存款支付。每次 INCREMENT 至多一个 0→1(全 1 进位溢出时没有), 记账 2 恒够, 总记账 2k ≥ 实际翻转数, 平摊 O(1)。\n\n## 要点\n\n记账法把「总代价」分解为「操作时的付出 + 预存款」, 证明信用非负通常用归纳; 相比聚合分析, 它能给出**每类操作**各自的摊还界。",
+   "keyPoints": [
+    "聚合分析: 总代价 T(n) 直接除以 n, 粒度粗但简单",
+    "计数器总翻转 = k + Σ ⌊k/2^j⌋ ≤ 2k",
+    "记账法: 分配记账代价 + 信用余额非负 ⇒ 总记账是实际代价上界",
+    "栈: PUSH 记账 2、POP/MULTIPOP 记账 0, 信用存在元素上",
+    "计数器: 0→1 记账 2 并存 1 元, 1→0 用存款; 每步恰一次 0→1"
+   ],
+   "codes": [
+    {
+     "lang": "c",
+     "name": "记账法演示(栈)",
+     "desc": "输入操作序列(P=push, p=pop, m3=mulitpop 3), 输出每次实际代价/记账/信用余额。示例: 输入 P P P m3 p P → 信用余额恒非负",
+     "code": "#include <stdio.h>\n#include <string.h>\n#include <stdlib.h>\n\n/* 记账法演示: 栈操作序列\n * PUSH 记账 2(1 元付压栈, 1 元存入该元素作信用), POP/MULTIPOP 记账 0\n * 不变式: 信用余额 = 栈中元素个数 >= 0, 故总记账 >= 总实际代价 */\nint st[1000];\n\nint main(void) {\n    char line[4096], *tok;\n    int top = 0, credit = 0, k;\n    long long real_total = 0, acct_total = 0;\n    printf(\"输入操作序列(如: P P P m3 p P): \");\n    if (!fgets(line, sizeof(line), stdin)) return 1;\n    tok = strtok(line, \" \\n\");\n    while (tok) {\n        if (tok[0] == 'P') {                 /* PUSH: 实际 1, 记账 2 */\n            st[top++] = 1;                   /* 1 表示该元素带 1 元信用 */\n            real_total += 1; acct_total += 2; credit += 1;\n            printf(\"PUSH   实际 1  记账 2  信用余额 %d\\n\", credit);\n        } else if (tok[0] == 'p') {          /* POP: 实际 1, 记账 0 */\n            if (top == 0) { printf(\"空栈! 忽略该操作\\n\"); }\n            else { top--; real_total += 1; credit -= 1;\n                   printf(\"POP    实际 1  记账 0  信用余额 %d\\n\", credit); }\n        } else if (tok[0] == 'm') {          /* MULTIPOP(k): 实际 min(k,top), 记账 0 */\n            k = atoi(tok + 1);\n            int c = k < top ? k : top;\n            top -= c; credit -= c; real_total += c;\n            printf(\"MULTIPOP(%d) 实际 %d  记账 0  信用余额 %d\\n\", k, c, credit);\n        }\n        tok = strtok(NULL, \" \\n\");\n    }\n    printf(\"总实际代价 %lld, 总记账 %lld, 信用余额 %d (恒非负? %s)\\n\",\n           real_total, acct_total, credit, credit >= 0 ? \"是\" : \"否\");\n    return 0;\n}\n"
+    },
+    {
+     "lang": "python",
+     "name": "记账法演示(栈)",
+     "desc": "输入操作序列(P=push, p=pop, m3=multipop 3), 输出每次实际代价/记账/信用余额。示例: 输入 P P P m3 p P → 总记账 ≥ 总实际(True)",
+     "code": "# 记账法演示: 栈操作序列 —— PUSH 记账 2, POP/MULTIPOP 记账 0\n# 每个元素入栈时存 1 元信用, 弹出时用信用支付; 信用余额恒非负\nimport sys\n\ndef main():\n    ops = sys.stdin.read().split()\n    top = 0\n    credit = 0\n    real_total = acct_total = 0\n    for tok in ops:\n        if tok == \"P\":                     # PUSH: 实际 1, 记账 2\n            top += 1\n            credit += 1\n            real_total += 1\n            acct_total += 2\n            print(f\"PUSH   实际 1  记账 2  信用余额 {credit}\")\n        elif tok == \"p\":                   # POP: 实际 1, 记账 0\n            if top == 0:\n                print(\"空栈! 忽略该操作\")\n            else:\n                top -= 1\n                credit -= 1\n                real_total += 1\n                print(f\"POP    实际 1  记账 0  信用余额 {credit}\")\n        elif tok[0] == \"m\":                # MULTIPOP(k): 实际 min(k,top), 记账 0\n            k = int(tok[1:])\n            c = min(k, top)\n            top -= c\n            credit -= c\n            real_total += c\n            print(f\"MULTIPOP({k}) 实际 {c}  记账 0  信用余额 {credit}\")\n    print(f\"总实际代价 {real_total}, 总记账 {acct_total}, 信用余额 {credit} (非负: {credit >= 0})\")\n    print(f\"总记账 >= 总实际: {acct_total >= real_total}\")\n\nmain()\n"
+    }
+   ],
+   "exercises": [
+    {
+     "diff": 3,
+     "q": "为栈的 PUSH/POP/MULTIPOP 设计记账方案(PUSH 记账 2, POP 记账 0, MULTIPOP 记账 0), 证明对任意合法操作序列信用余额非负, 从而总记账是总实际代价的上界。",
+     "hint": "归纳于操作次数; 不变式: 信用余额恰好等于栈中元素个数。",
+     "ans": "**思路**: 记账法核心是「给每个元素预存将来弹出所需的费用」。\n\n**方案**: PUSH 记账 2——1 元支付本次压栈, 1 元存入该元素作为信用; POP 记账 0; MULTIPOP(k) 记账 0——弹出一个元素就用该元素的 1 元信用支付。\n\n**非负性证明(对操作次数归纳)**: 不变式「信用余额 = 栈中元素个数」。初始余额 0、栈空 ✓。PUSH: 余额 +1, 栈元素 +1 ✓。POP: 余额 −1, 栈元素 −1(仅当栈非空, 合法序列)✓。MULTIPOP(k): 余额 −min(k, top), 栈元素同步减少 ✓。故余额恒等于栈大小 ≥ 0。\n\n**结论**: 总记账 = 2·(#PUSH) ≤ 2n, 且总记账 ≥ 总实际代价, 故总实际代价 ≤ 2n, 平摊 O(1)。"
+    },
+    {
+     "diff": 4,
+     "q": "二进制计数器: 设计记账方案使每次 INCREMENT 记账 2, 证明任意 k 次 INCREMENT 后信用非负, 且总记账 ≥ 实际翻转总数。",
+     "hint": "翻转 0→1 的位付 1 元并给该位存 1 元; 翻转 1→0 的位用存款支付; 每次 INCREMENT 至多一个 0→1。",
+     "ans": "**思路**: 存款跟随位值——位为 1 时必有 1 元存款, 保证将来翻转回 0 时有钱支付。\n\n**方案**: 每次 INCREMENT 记账 2 元。翻转 0→1: 支付 1 元(本次翻转), 再给该位存 1 元; 翻转 1→0: 支取该位的 1 元存款支付。\n\n**非负性证明**: 不变式「每位存款 = 该位当前值」: 初始全 0 无存款 ✓; 一次 INCREMENT 把末尾 t 个 1 翻成 0(支取 t 元, 存款同步清零)、1 个 0 翻成 1(支付 1 元 + 存 1 元); 进位溢出(全 1 变全 0)时无 0→1, 记账 2 仍有 2 元富余。存款总和恒 = 1 的个数 ≥ 0 ✓。每次实际开销 ≤ 2 = 记账。\n\n**结论**: k 次总记账 2k ≥ 实际翻转总数, 平摊 O(1)。"
+    },
+    {
+     "diff": 5,
+     "q": "用记账法分析「两个栈实现队列」: 设计记账代价使 ENQUEUE 与 DEQUEUE 均平摊 O(1)(ENQUEUE 记账 3, DEQUEUE 记账 1), 证明信用非负; 并与聚合分析的结论对照。",
+     "hint": "ENQUEUE 的 3 元: 1 元付压栈, 2 元存到元素上, 供将来倒栈(pop S₁ + push S₂)支付; 不变式: 信用余额 = 2·|S₁|。",
+     "ans": "**思路**: 倒栈的 2t 代价必须由之前 ENQUEUE 的存款支付——每个元素入队时预存 2 元。\n\n**方案**: ENQUEUE 记账 3: 1 元支付 push 进 S₁, 2 元作为该元素存款; DEQUEUE 记账 1。\n\n**非负性证明**: 不变式「信用余额 = 2·|S₁|」。ENQUEUE: 余额 +2, |S₁| +1 ✓。DEQUEUE(S₂ 非空): 记账 1 = 实际 1, 余额不变 ✓。DEQUEUE(S₂ 空, |S₁| = t): 倒栈——t 个元素各支取 2 元存款支付 pop S₁ + push S₂(共 2t), 余额从 2t 变 0; 最后 pop S₂ 由本次记账 1 支付; 余额 = 0 = 2·|S₁| ✓。恒非负。\n\n**结论**: 总记账 ≤ 3·(ENQUEUE 数) + 1·(DEQUEUE 数) ≤ 3m, 故总实际代价 ≤ 3m, ENQUEUE 平摊 3、DEQUEUE 平摊 1, 均 O(1)。\n\n**对照**: 聚合分析给出总界 O(m) 但无法区分两类操作; 记账法给出**每类操作各自的摊还界**(ENQUEUE 3, DEQUEUE 1), 粒度更细, 是两种方法的典型差异。"
+    }
+   ]
+  },
+  {
+   "id": "12-3",
+   "title": "势能法",
+   "keywords": [
+    "势能法",
+    "势函数",
+    "平摊代价",
+    "动态表",
+    "二进制计数器"
+   ],
+   "desc": "势能法: 势函数定义与平摊代价公式, 栈/计数器/动态表三大经典例子与选势函数的艺术。",
+   "theory": "**定义** 设 D₀ 为初始数据结构, 第 i 次操作把 D~(i−1)~ 变为 D~i~, 实际代价 c~i~。定义**势函数** Φ: 状态 → 实数, 平摊代价:\n\n> ĉ~i~ = c~i~ + Φ(D~i~) − Φ(D~(i−1)~)。\n\n累加得 Σĉ~i~ = Σc~i~ + Φ(D~n~) − Φ(D₀)。若 **Φ(D~n~) ≥ Φ(D₀)**(通常取 Φ ≥ 0 且 Φ₀ = 0), 则总平摊代价 ≥ 总实际代价——平摊代价之和给出总代价上界。\n\n## 直觉\n\n势能是「预存在数据结构里的工作量」: 操作使势能上升(存款)时, 平摊代价大于实际代价; 势能下降(取款支付)时, 平摊代价小于实际代价。ΔΦ 单步可正可负, 只需**总量**非负。\n\n## 例 1: 栈\n\nΦ = 栈中元素个数。PUSH: ĉ = 1 + 1 = 2; POP: ĉ = 1 − 1 = 0; MULTIPOP(k): ĉ = min(k, s) − min(k, s) = 0。Φ ≥ 0 恒成立, 总平摊 ≤ 2n, 摊还 O(1)。\n\n## 例 2: 二进制计数器\n\nΦ = 计数器中 1 的个数。一次 INCREMENT 翻转 t 个 1 为 0、1 个 0 为 1(全 1 时全变 0 溢出): 实际 c = t + 1, 势能变化 ΔΦ = 1 − t, 平摊 ĉ = 2——进位链再长, 平摊也是常数。\n\n## 例 3: 动态表扩张\n\n容量 size、元素数 num, 满时翻倍并复制。取 Φ = 2·num − size。插入: 未满时 ĉ = 1 + 2 = 3; 满时 c = num + 1(复制 num 个再插入), ΔΦ = (2(num+1) − 2num) − (2num − num) = 2 − num, ĉ = 3——扩张的昂贵复制由之前积累的势能支付, 平摊恒为 3, O(1)。直觉: 每插入一个元素「存 2 元」, 其中 1 元留给未来的扩张复制, 1 元留在势能里维持 Φ ≥ 0。\n\n## 为什么 Φ 要选 2·num − size\n\n势能必须是「未来昂贵成本的度量」: 表越接近满, 离下次扩张越近, 势能应越高; 2·num − size 在 num = size 时为 size(最大), 在 num = 0 时为 −size。为保证 Φ ≥ 0, 需约束 num ≥ size/2(负载 ≥ 1/2 时); 负载低于 1/2 时改用另一支 Φ = size/2 − num(见 12-4 节的分段定义)。势函数的选择是摊还分析的难点与艺术: 选对则「昂贵操作吃势能, 便宜操作存势能」的循环自动成立。\n\n## 选势函数的艺术\n\n势函数应「度量未来昂贵操作的成本」: 栈的未来成本(弹出)正比于栈大小; 计数器的未来成本正比于 1 的个数; 动态表的未来成本正比于离下次扩张的距离。选对了, 分析行云流水; 选错了, 平摊界失效。三条经验: ① 势函数要「状态相关」而非「操作相关」; ② 昂贵操作发生时势能恰好大幅下降; ③ 势能恒非负且初值为 0。",
+   "keyPoints": [
+    "平摊代价 ĉ_i = c_i + ΔΦ_i; Φ_n ≥ Φ_0 时 Σĉ ≥ Σc, 平摊和给出总代价上界",
+    "势能是预存工作量: 上升=存款(多记账), 下降=取款支付(少记账)",
+    "栈: Φ=栈大小, PUSH 平摊 2 / POP 0 / MULTIPOP 0",
+    "计数器: Φ=1 的个数, 每次 INCREMENT 平摊 2, 进位链被势能抵消",
+    "动态表: Φ=2·num−size, 插入平摊恒为 3; 势函数应度量未来昂贵成本"
+   ],
+   "codes": [
+    {
+     "lang": "c",
+     "name": "势能法演示(栈)",
+     "desc": "输入操作序列(P=push, p=pop, m3=multipop 3), 输出每次实际代价/ΔΦ/平摊代价并验证 Σĉ=Σc+Φ终−Φ初。示例: 输入 P P P m3 p P → 验证(是)",
+     "code": "#include <stdio.h>\n#include <string.h>\n#include <stdlib.h>\n\n/* 势能法演示: 栈, 势函数 Φ = 栈中元素个数\n * 平摊代价 ĉ = c + ΔΦ: PUSH=2, POP=0, MULTIPOP(k)=0\n * 恒等式: Σĉ = Σc + Φ终 - Φ初 */\nint st[1000];\n\nint main(void) {\n    char line[4096], *tok;\n    int top = 0, k;\n    long long sum_c = 0, sum_ac = 0;\n    printf(\"输入操作序列(如: P P P m3 p P): \");\n    if (!fgets(line, sizeof(line), stdin)) return 1;\n    tok = strtok(line, \" \\n\");\n    while (tok) {\n        int c = 0, phi_before = top, phi_after = top;\n        if (tok[0] == 'P') { st[top++] = 1; c = 1; phi_after = top; }\n        else if (tok[0] == 'p') {\n            if (top == 0) { printf(\"空栈! 忽略\\n\"); tok = strtok(NULL, \" \\n\"); continue; }\n            top--; c = 1; phi_after = top;\n        } else if (tok[0] == 'm') {\n            k = atoi(tok + 1);\n            int cnt = k < top ? k : top;\n            top -= cnt; c = cnt; phi_after = top;\n        }\n        int ac = c + (phi_after - phi_before);   /* 平摊代价 = 实际 + ΔΦ */\n        sum_c += c; sum_ac += ac;\n        printf(\"操作 %-10s 实际 %2d  Φ: %d->%d  ΔΦ %3d  平摊 %2d\\n\",\n               tok, c, phi_before, phi_after, phi_after - phi_before, ac);\n        tok = strtok(NULL, \" \\n\");\n    }\n    printf(\"Σ实际 = %lld, Σ平摊 = %lld, Φ终 - Φ初 = %d\\n\", sum_c, sum_ac, top);\n    printf(\"验证 Σ平摊 = Σ实际 + Φ终 - Φ初: %s\\n\",\n           sum_ac == sum_c + top ? \"是\" : \"否\");\n    return 0;\n}\n"
+    },
+    {
+     "lang": "python",
+     "name": "势能法演示(栈)",
+     "desc": "输入操作序列(P=push, p=pop, m3=multipop 3), 输出每次实际代价/ΔΦ/平摊代价并验证恒等式。示例: 输入 P P P m3 p P → 验证(True)",
+     "code": "# 势能法演示: 栈, 势函数 Φ = 栈中元素个数\n# 平摊代价 ĉ = c + ΔΦ: PUSH=2, POP=0, MULTIPOP=0; 恒等式 Σĉ = Σc + Φ终 - Φ初\nimport sys\n\ndef main():\n    ops = sys.stdin.read().split()\n    top = 0\n    sum_c = sum_ac = 0\n    for tok in ops:\n        phi_before = top\n        if tok == \"P\":\n            top += 1\n            c = 1\n        elif tok == \"p\":\n            if top == 0:\n                print(\"空栈! 忽略该操作\")\n                continue\n            top -= 1\n            c = 1\n        else:\n            k = int(tok[1:])\n            c = min(k, top)\n            top -= c\n        phi_after = top\n        ac = c + (phi_after - phi_before)   # 平摊代价 = 实际 + ΔΦ\n        sum_c += c\n        sum_ac += ac\n        print(f\"操作 {tok:<8} 实际 {c:>2}  Φ {phi_before}->{phi_after}  ΔΦ {phi_after - phi_before:+3d}  平摊 {ac:>2}\")\n    print(f\"Σ实际 = {sum_c}, Σ平摊 = {sum_ac}, Φ终 - Φ初 = {top}\")\n    print(f\"验证 Σ平摊 = Σ实际 + Φ终 - Φ初: {sum_ac == sum_c + top}\")\n\nmain()\n"
+    }
+   ],
+   "exercises": [
+    {
+     "diff": 3,
+     "q": "用势能法分析栈的 MULTIPOP: 取势函数 Φ = 栈中元素个数, 计算 PUSH/POP/MULTIPOP 各自的平摊代价, 并说明为什么总平摊 ≥ 总实际。",
+     "hint": "平摊代价 ĉ = c + ΔΦ, 三种操作分别代入; Φ ≥ 0 且 Φ₀ = 0。",
+     "ans": "**思路**: 势能法把「未来弹出的工作量」预先计入压栈操作。\n\n**计算**: 设栈大小 s, Φ = s。PUSH: c = 1, ΔΦ = +1, ĉ = 2。POP: c = 1, ΔΦ = −1, ĉ = 0。MULTIPOP(k): c = min(k, s), ΔΦ = −min(k, s), ĉ = 0。\n\n**为什么总平摊 ≥ 总实际**: Σĉ = Σc + Φ终 − Φ初; Φ ≥ 0 且 Φ₀ = 0 时 Φ终 ≥ 0 = Φ₀, 故 Σĉ ≥ Σc。n 次操作中 PUSH 至多 n 次、每次平摊 2, 故总平摊 ≤ 2n, 总实际 ≤ 2n, 摊还 O(1)。\n\n**要点**: 单次 POP 平摊 0 不代表免费——它消耗的是之前 PUSH 存入的势能; 平摊代价是「分摊」后的度量, 单步可负。"
+    },
+    {
+     "diff": 4,
+     "q": "二进制计数器: 取势函数 Φ = 计数器中 1 的个数, 证明每次 INCREMENT 的平摊代价 ≤ 2, 并解释为什么进位链再长也不影响平摊界。",
+     "hint": "第 i 次 INCREMENT 翻转 t 个 1 为 0、1 个 0 为 1(或全部 1 溢出), c = t+1, ΔΦ = 1−t。",
+     "ans": "**思路**: 势能「1 的个数」恰好度量了将来翻转 1→0 所需的总工作量。\n\n**计算**: 设第 i 次 INCREMENT 把末尾 t 个 1 翻成 0、1 个 0 翻成 1(若计数器全为 1 则 t 位全翻 0, 无 0→1)。实际代价 c = t + 1(翻转位数)。Φ 变化: 减少 t 个 1, 增加 1 个 1(溢出情形增加 0), 故 ΔΦ ≤ 1 − t。平摊 ĉ = c + ΔΦ ≤ (t+1) + (1−t) = **2**。\n\n**为什么进位链无关**: 进位链长(即 t 大)时实际代价 t+1 大, 但同时势能下降 1−t, 两者恰好抵消——昂贵操作「吃掉」之前积累的势能。势能法把总代价重新分配给各次操作: 0→1 的翻转(势能上升)多记账, 1→0 的翻转(势能下降)少记账。\n\n**结论**: Φ ≥ 0 且 Φ₀ = 0, k 次总平摊 ≤ 2k ≥ 总实际, 平摊 O(1)。"
+    },
+    {
+     "diff": 5,
+     "q": "二进制计数器支持两种操作: INCREMENT(加 1)与 RESET(清零, 实际代价 = 位数 k)。① 取势函数 Φ = 1 的个数, 求 INCREMENT 与 RESET 各自的平摊代价; ② 证明: 对任何满足 Φ ≥ 0、Φ(D₀) = 0 的势函数, RESET 的平摊代价至少为 Ω(k), 不可能 O(1)。",
+     "hint": "① 直接代入 ĉ = c + ΔΦ; ② 考虑「从初始状态连续执行 m 次 RESET」这个合法序列, 每次实际代价恰为 k。",
+     "ans": "**思路**: 上界用势能法代入; 下界用「重复 RESET」的合法序列——摊还分析允许任意序列, 势函数无法摊薄必然发生的代价。\n\n**① 上界**: Φ = #1。INCREMENT: 如前题, ĉ ≤ 2 = O(1)。RESET: 从状态 v 清零, c = k(把每一位置 0), ΔΦ = 0 − #1(v) ≤ 0, ĉ = k + ΔΦ ≤ **k = O(k)**(k 为位数)。\n\n**② 下界证明**: 对任意势函数 Φ ≥ 0、Φ(D₀) = 0, 考虑从初始状态连续执行 m 次 RESET 的序列: 每次实际代价恰为 k, 总实际代价 = mk。由恒等式 Σĉ = Σc + Φ(D~m~) − Φ(D₀) ≥ mk − 0 = mk, 平均每次平摊 ≥ k − Φ(D₀)/m = k。令 m → ∞, 得 RESET 的平摊代价至少 **Ω(k)**。\n\n**结论**: INCREMENT 平摊 O(1) 可达(势能 #1), RESET 平摊 Θ(k) 是固有下界, 任何势函数都无法让两者同时 O(1)。这也解释了: 支持清零的计数器, 清零操作必须按位数计费。"
+    }
+   ]
+  },
+  {
+   "id": "12-4",
+   "title": "动态表与平摊实例",
+   "keywords": [
+    "动态表",
+    "负载因子",
+    "扩张",
+    "收缩",
+    "斐波那契堆",
+    "伸展树",
+    "势能"
+   ],
+   "desc": "动态表扩张/收缩(负载 1/4 阈值)的势能分析, 斐波那契堆与伸展树的摊还界概述。",
+   "theory": "**动态表** 支持 INSERT 与 DELETE 的数组表: 元素数 num、容量 size。插入: num 小于 size 直接放 O(1); num == size 时**扩张**——分配 2·size 的新表并复制, 再插入。删除: 表过空时**收缩**。若收缩阈值取 1/2: 表满后删一个元素触发收缩到一半, 再插入又立即扩张——在边界反复 insert/delete 每次都要 O(n) 复制(抖动, thrashing), 平摊崩坏。**正确设计: 负载因子降到 1/4 才收缩到一半**: 收缩后负载 1/2, 到下次收缩还需删掉一半元素, 期间积累的「删除信用」足以支付收缩复制。\n\n**运行示例**: 空表依次 I I I I I D D D——扩张事件: 第 1 次插入(0→1, 复制 0)、第 2 次(1→2, 复制 1)、第 3 次(2→4, 复制 2)、第 5 次(4→8, 复制 4); 删除后负载降到 1/4(元素 2、容量 8)时收缩 8→4(复制 2)。总复制 9 次, 8 次操作平均约 1.1——远小于「每次 O(n)」。\n\n## 势能分析\n\n取分段势函数:\n\n> Φ = 2·num − size(负载 ≥ 1/2), Φ = size/2 − num(负载 小于 1/2)。\n\n- INSERT: 未扩张时 ĉ = 1 + ΔΦ ≤ 3; 扩张时 c = num+1, ΔΦ = 2 − num, ĉ = 3; 平摊 ≤ 3;\n- DELETE: 未收缩时 ĉ ≤ 3; 收缩发生在 num = size/4 − 1, 代入计算得 ĉ ≤ 3。\n\n故 INSERT 与 DELETE 均平摊 **O(1)**, 且任意时刻 size = Θ(num), 空间开销始终是元素数的常数倍。完整的四情形推导见本节练习 3。\n\n## 斐波那契堆摊还界概述\n\n斐波那契堆是「懒惰」堆: 合并与减键几乎不做实际工作, 把清理推迟到删除最小元。势函数 Φ = t + 2m(t = 根链表结点数, m = 被标记结点数)。各操作平摊界: INSERT O(1)(根链表加一个结点, t +1); 合并 O(1); DECREASE-KEY O(1)(级联切断至多使 t 增 O(1), 释放的标记被 2m 项吸收); EXTRACT-MIN O(log n)(把度相同的树两两合并, 度数至多 D(n) = O(log n), 期间 t 大幅下降); 由此 DELETE-MIN 与 DELETE 均平摊 O(log n)。它把「每次操作的实际代价」与「懒惰积累的清理账单」用势能分开记账。\n\n## 伸展树摊还 O(log n) 概述\n\n伸展树每次访问后把被访问结点 splay 到根, 是「用过的越靠上」的自适应结构。势函数 Φ = Σ log(size(x))(每个结点的秩 = 以其为根的子树大小取对数)。Splay 的三种旋转中, zig-zig 与 zig-zag 的平摊代价 ≤ 3(r′(x) − r(x)) + 1, zig 平摊 ≤ 3(r′(x) − r(x)) + 1, 逐层求和后中间项抵消, 只剩首尾秩差 O(log n)——每次访问(含查找)平摊 **O(log n)**, m 次操作总代价 O(m log n), 且对任何固定输入都成立。这是势能法在「自适应数据结构」上的经典应用: 即使某次访问路径很长, 势能的消耗也恰好覆盖它。",
+   "keyPoints": [
+    "动态表: 满时翻倍扩张, 负载降到 1/4 才收缩; 阈值 1/2 会抖动(thrashing)",
+    "分段势函数: 负载 ≥1/2 用 2·num−size, 否则 size/2−num",
+    "INSERT 与 DELETE 均平摊 O(1), 且任意时刻 size = Θ(num)",
+    "斐波那契堆: Φ = 根结点数 + 2×标记数, EXTRACT-MIN 平摊 O(log n)",
+    "伸展树: Φ = Σ log(子树大小), splay 旋转逐层抵消, 每次操作平摊 O(log n)"
+   ],
+   "codes": [
+    {
+     "lang": "c",
+     "name": "动态表扩张与收缩",
+     "desc": "输入操作序列(I=插入, D=删除), 输出每次扩张/收缩事件、复制次数与负载因子。示例: 输入 I I I I I D D D → 总复制次数小, 平摊 O(1)",
+     "code": "#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\n/* 动态表: 满时翻倍扩张, 负载因子降到 1/4 时收缩一半 —— 平摊 O(1)\n * 阈值取 1/4 而非 1/2, 避免边界反复 insert/delete 的抖动(thrashing) */\nint main(void) {\n    char line[4096], *tok;\n    int *tab = NULL, num = 0, size = 0;\n    long long copies = 0;\n    printf(\"输入操作序列(如: I I I I I D D D): \");\n    if (!fgets(line, sizeof(line), stdin)) return 1;\n    tok = strtok(line, \" \\n\");\n    while (tok) {\n        if (tok[0] == 'I') {\n            if (num == size) {               /* 扩张: 容量翻倍并复制 */\n                int ns = size == 0 ? 1 : size * 2;\n                int *nt = (int *)malloc(ns * sizeof(int));\n                for (int i = 0; i < num; i++) nt[i] = tab[i];\n                free(tab); tab = nt;\n                copies += num;\n                size = ns;\n                printf(\"扩张 %d -> %d (复制 %d)\\n\", size / 2, size, num);\n            }\n            tab[num++] = num;\n            printf(\"INSERT: num=%d size=%d 负载=%.2f\\n\", num, size, (double)num / size);\n        } else if (tok[0] == 'D') {\n            if (num == 0) { printf(\"空表! 忽略\\n\"); }\n            else {\n                num--;\n                if (size > 1 && num <= size / 4) {   /* 收缩: 负载降到 1/4 */\n                    int ns = size / 2;\n                    int *nt = (int *)malloc(ns * sizeof(int));\n                    for (int i = 0; i < num; i++) nt[i] = tab[i];\n                    free(tab); tab = nt;\n                    copies += num;\n                    size = ns;\n                    printf(\"收缩 %d -> %d (复制 %d)\\n\", size * 2, size, num);\n                }\n                printf(\"DELETE: num=%d size=%d 负载=%.2f\\n\", num, size, (double)num / size);\n            }\n        }\n        tok = strtok(NULL, \" \\n\");\n    }\n    free(tab);\n    printf(\"总复制次数 = %lld (平摊到每次操作 O(1))\\n\", copies);\n    return 0;\n}\n"
+    },
+    {
+     "lang": "python",
+     "name": "动态表扩张与收缩",
+     "desc": "输入操作序列(I=插入, D=删除), 输出每次扩张/收缩事件、复制次数与负载因子。示例: 输入 I I I I I D D D → 总复制次数小, 平摊 O(1)",
+     "code": "# 动态表: 满时翻倍扩张, 负载因子降到 1/4 时收缩一半 —— 平摊 O(1)\nimport sys\n\ndef main():\n    ops = sys.stdin.read().split()\n    tab = []\n    num = 0\n    size = 0\n    copies = 0\n    for tok in ops:\n        if tok == \"I\":\n            if num == size:                # 扩张: 容量翻倍并复制\n                old = size\n                size = max(1, size * 2)\n                copies += num\n                print(f\"扩张 {old} -> {size} (复制 {num})\")\n            tab.append(num)\n            num += 1\n            print(f\"INSERT: num={num} size={size} 负载={num / size:.2f}\")\n        elif tok == \"D\":\n            if num == 0:\n                print(\"空表! 忽略\")\n                continue\n            num -= 1\n            tab.pop()\n            if size > 1 and num <= size // 4:   # 收缩阈值: 负载 1/4\n                old = size\n                size //= 2\n                copies += num\n                print(f\"收缩 {old} -> {size} (复制 {num})\")\n            print(f\"DELETE: num={num} size={size} 负载={num / size:.2f}\")\n    print(f\"总复制次数 = {copies} (平摊到每次操作 O(1))\")\n\nmain()\n"
+    }
+   ],
+   "exercises": [
+    {
+     "diff": 3,
+     "q": "用聚合分析证明动态表扩张的平摊界: 从空表连续插入 n 个元素, 证明总复制次数 小于 2n, 每次插入平摊 O(1)。",
+     "hint": "复制发生在容量翻倍时, 复制量序列为 0, 1, 2, 4, …, 2^(⌈log₂n⌉−1), 等比求和。",
+     "ans": "**思路**: 复制只在扩张时发生, 且复制量按 2 的幂增长——等比级数求和是聚合分析的标准动作。\n\n**计算**: 从空表插入 n 个元素, 扩张发生在第 1, 2, 3, 5, 9, … 次插入(容量依次 1, 2, 4, 8, …), 对应复制量 0, 1, 2, 4, …, 2^(m−1), 其中 m = ⌈log₂n⌉。总复制 = 1 + 2 + 4 + … + 2^(m−1) = 2^m − 1 小于 2n。\n\n**总代价**: 插入本身 n 次 + 复制 2^m − 1 次, 总和 小于 3n, 平摊每次 **O(1)**。\n\n**要点**: 大部分插入是 O(1) 的, 少数插入触发 O(n) 复制; 复制量构成等比级数, 其和被最大项的同阶量控制——「偶尔贵、整体便宜」的量化表达。"
+    },
+    {
+     "diff": 4,
+     "q": "动态表收缩阈值的选择: 证明若收缩阈值取 1/2(负载因子降到 1/2 即收缩到一半), 存在操作序列使平摊代价达到 Θ(n); 说明阈值取 1/4 为何能避免该问题。",
+     "hint": "构造振荡序列: 表满后交替 delete/insert, 每次触发收缩或扩张都要复制 Θ(n) 个元素; 1/4 阈值保证两次复制之间隔 Θ(容量) 次操作。",
+     "ans": "**思路**: 阈值太「紧」会让收缩与扩张在边界反复触发——抖动(thrashing)。\n\n**反例构造(阈值 1/2)**: 设容量 2^m、元素 2^m(满表)。连续 DELETE 到元素 2^(m−1)(负载 1/2), 再 DELETE 一个: 负载低于 1/2, 触发收缩——复制 2^(m−1) − 1 个元素到容量 2^(m−1) 的新表; 此时元素 = 2^(m−1) − 1。INSERT 一个: 元素 = 2^(m−1), 恰好满; 再 INSERT 一个: 触发扩张——复制 2^(m−1) 个元素到容量 2^m。于是「DELETE + INSERT」两步共复制 Θ(2^m) 个元素, 平均每次操作代价 Θ(n), 平摊崩坏; 反复执行该循环, 任意势函数都无法摊薄。\n\n**1/4 阈值的正确性**: 收缩后负载 = 1/2, 从 1/2 降到 1/4 需要删除约 size/4 个元素, 期间无复制; 扩张后负载 = 1/2, 到满还需插入 size/2 次。两次复制之间至少隔 Θ(容量) 次普通操作, 复制的 Θ(容量) 代价被摊薄为每次 O(1)——这与 12-4 节势能分析一致。\n\n**结论**: 阈值必须「远离」1/2, 使扩张与收缩之间留出足够多的操作积累势能/信用。"
+    },
+    {
+     "diff": 5,
+     "q": "用分段势函数完整证明动态表的 INSERT 与 DELETE 均平摊 O(1): 势函数 Φ = 2·num − size(负载 ≥ 1/2), Φ = size/2 − num(负载 小于 1/2); 收缩阈值为负载降到 1/4。分情形计算平摊代价。",
+     "hint": "分四种情形: 插入(扩张/不扩张)、删除(收缩/不收缩); 收缩发生在 num = size/4 − 1 的时刻; 每情形计算 ĉ = c + ΔΦ 并给出 ≤ 3 的上界。",
+     "ans": "**思路**: 分段势函数分别在「高负载区」与「低负载区」度量离下次扩张/收缩的距离, 使复制的大代价被势能吸收。\n\n**记法**: n = num, s = size。\n\n**情形 1(插入, 不扩张)**: n 小于 s。负载 ≥ 1/2: ĉ = 1 + (2(n+1)−s) − (2n−s) = **3**。负载 小于 1/2(n+1 ≤ s/2): ĉ = 1 + (s/2 − (n+1)) − (s/2 − n) = **0**。\n\n**情形 2(插入, 扩张)**: n = s, 先复制 n 个再插入, c = n+1; 扩张前后负载从 1 到约 1/2: ΔΦ = (2(n+1) − 2n) − (2n − n) = 2 − n; ĉ = (n+1) + (2−n) = **3**。\n\n**情形 3(删除, 不收缩)**: n 大于 s/4。负载 ≥ 1/2: c = 1, ΔΦ = (2(n−1)−s) − (2n−s) = −2, ĉ = **−1** ≤ 3; 负载 小于 1/2: ĉ = 1 + (s/2 − (n−1)) − (s/2 − n) = **2**。\n\n**情形 4(删除, 收缩)**: 收缩发生在删后 n' = s/4 − 1 时, 收缩到 s/2。c = 1 + n'(删除 1 + 复制 n'); 收缩前 Φ = s/2 − n'(低负载区), 收缩后 Φ' = s/4 − n'(新负载 = (s/4−1)/(s/2) 小于 1/2, 仍在低负载区): ΔΦ = (s/4 − n') − (s/2 − n') = −s/4 = −n'; ĉ = (n'+1) + (−n') = **1**。\n\n**结论**: 所有情形 ĉ ≤ 3, 且 Φ ≥ 0, 故任意操作序列总实际代价 ≤ 总平摊 ≤ 3·(操作数)——INSERT 与 DELETE 均平摊 **O(1)**; 同时 Φ = Θ(s) 约束下 size = Θ(num), 空间常数倍。\n\n**要点**: 收缩阈值 1/4 使情形 4 的势能下降恰好抵消复制代价; 若阈值取 1/2, 情形 4 的 ĉ 将不是常数(见本节练习 2)。"
+    }
+   ]
+  }
+ ]
+}

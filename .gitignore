@@ -1,0 +1,13 @@
+# Python
+__pycache__/
+*.pyc
+
+# 本地临时目录(服务器运行时自动重建)
+.tmp/
+
+# 测试残留
+qa_tmp/
+
+# 系统文件
+Thumbs.db
+Desktop.ini
