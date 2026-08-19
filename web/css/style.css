@@ -91,6 +91,13 @@ button { font-family: var(--sans); }
 .brand-text b { display: block; font-size: 16.5px; line-height: 1.3; }
 .brand-text small { color: var(--muted); font-size: 12px; }
 #nav-tree { flex: 1; overflow-y: auto; padding: 4px 10px 16px; }
+.nav-tools { margin: 4px 0 8px; }
+.nav-tools .nav-sec { font-weight: 600; }
+.nav-tools .t-ic { width: 20px; text-align: center; flex: none; }
+.nav-divider {
+  font-size: 11.5px; color: var(--muted); letter-spacing: 1px;
+  padding: 8px 8px 4px; border-top: 1px solid var(--line); margin-top: 4px;
+}
 .nav-chapter { margin: 6px 0 2px; }
 .nav-chapter > button {
   width: 100%; display: flex; align-items: center; gap: 8px;

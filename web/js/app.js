@@ -165,18 +165,35 @@ const App = (() => {
         break;
       }
       case "toggle-box": {
-        const box = U.q("#" + t.getAttribute("data-t"));
+        /* 用 getElementById 而非 querySelector: 兼容含特殊字符的 id, 且不会抛异常 */
+        const box = document.getElementById(t.getAttribute("data-t"));
         if (box) box.classList.toggle("hidden");
         break;
       }
       case "wrong":
         Store.addWrong(t.getAttribute("data-key"));
-        U.toast("已加入错题本 📕", "ok");
+        U.toast("已加入错题本 📕 可到「学习统计」查看", "ok");
         break;
       case "del-wrong":
         Store.removeWrong(t.getAttribute("data-key"));
         route();
         break;
+      case "goto-ex": {
+        /* 从错题本跳转到具体练习: 进入小节页后滚动定位并高亮 */
+        const secId = t.getAttribute("data-sec");
+        const exNo = parseInt(t.getAttribute("data-ex"), 10);
+        location.hash = "#/sec/" + secId;
+        setTimeout(() => {
+          const el = document.getElementById("ex-" + secId + "-" + exNo);
+          if (el) {
+            el.scrollIntoView({ behavior: "smooth", block: "start" });
+            el.style.outline = "2px solid var(--primary)";
+            el.style.outlineOffset = "2px";
+            setTimeout(() => { el.style.outline = ""; el.style.outlineOffset = ""; }, 2500);
+          }
+        }, 150);
+        break;
+      }
       case "quiz-start":
         Pages.quizStart();
         break;

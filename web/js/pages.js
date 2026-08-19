@@ -6,8 +6,21 @@ const Pages = (() => {
   function navTree(activeId) {
     const chs = Data.allChapters();
     if (!chs.length) return '<div class="muted small" style="padding:10px">章节加载中…</div>';
+    /* 功能区入口(顶栏可见, 便于直达各学习工具) */
+    const hash0 = (location.hash || "#/").replace(/^#\/?/, "").split("/")[0] || "home";
+    const tools = [
+      ["quiz", "📝", "随机测验"],
+      ["review", "⏰", "间隔复习"],
+      ["stats", "📕", "错题本 · 统计"],
+      ["cheat", "📋", "知识速查表"],
+      ["lab", "🔧", "算法实验台"],
+      ["path", "🗺", "学习路径"]
+    ];
+    let html = '<div class="nav-tools">' + tools.map(t =>
+      '<a class="nav-sec' + (hash0 === t[0] ? " active" : "") + '" href="#/' + t[0] + '">' +
+      '<span class="t-ic">' + t[1] + '</span><span>' + t[2] + "</span></a>").join("") + "</div>" +
+      '<div class="nav-divider">📚 章节</div>';
     const navState = Store.getNavOpen();
-    let html = "";
     chs.forEach(ch => {
       const prog = chapterProgress(ch);
       const pct = U.pct(prog.done / Math.max(1, prog.total) * 100);
@@ -51,6 +64,7 @@ const Pages = (() => {
       '<div class="hero-btns">' +
       (cont ? '<a class="btn primary" href="#/sec/' + cont.id + '">▶ 继续学习: ' + U.escapeHtml(cont.title) + "</a>" : '<span class="btn">🎉 全部章节已学完</span>') +
       '<a class="btn" href="#/quiz">📝 随机测验</a>' +
+      '<a class="btn" href="#/stats">📕 错题本</a>' +
       '<a class="btn" href="#/path">🗺 学习路径</a>' +
       '<a class="btn" href="#/cheat">📋 速查表</a></div></div>';
     if (!App.isOnline()) {
@@ -166,16 +180,17 @@ const Pages = (() => {
     if (exs.length) {
       html += '<div class="card"><h3>📝 练习题 <span class="muted small">(中等偏上难度 · 先独立思考再看答案)</span></h3>';
       exs.forEach((ex, i) => {
-        const key = sec.id + "#" + i;
-        html += '<div class="ex-card"><div class="ex-head"><span class="ex-no">练习 ' + (i + 1) + "</span>" +
+        const key = sec.id + "#" + i;      // 错题本 storage key(统计页按 split("#") 解析)
+        const box = sec.id + "-" + i;      // DOM id 后缀: 不含 # (querySelector 中 # 为非法字符)
+        html += '<div class="ex-card" id="ex-' + box + '"><div class="ex-head"><span class="ex-no">练习 ' + (i + 1) + "</span>" +
           U.stars(ex.diff) + '<span class="ex-diff">' + U.diffLabel(ex.diff) + "</span></div>" +
           '<div class="ex-q content">' + MD.render(ex.q) + "</div>" +
           '<div class="ex-actions">' +
-          '<button class="btn small" data-act="toggle-box" data-t="hint-' + key + '">💡 提示</button>' +
-          '<button class="btn small" data-act="toggle-box" data-t="ans-' + key + '">✅ 查看答案</button>' +
+          '<button class="btn small" data-act="toggle-box" data-t="hint-' + box + '">💡 提示</button>' +
+          '<button class="btn small" data-act="toggle-box" data-t="ans-' + box + '">✅ 查看答案</button>' +
           '<button class="btn small danger" data-act="wrong" data-key="' + key + '">📕 加入错题本</button></div>' +
-          '<div class="ex-box hidden" id="hint-' + key + '"><div class="ex-box-title">💡 提示</div><div class="content">' + MD.render(ex.hint || "") + "</div></div>" +
-          '<div class="ex-box hidden" id="ans-' + key + '"><div class="ex-box-title">✅ 参考答案</div><div class="content">' + MD.render(ex.ans || "") + "</div></div></div>";
+          '<div class="ex-box hidden" id="hint-' + box + '"><div class="ex-box-title">💡 提示</div><div class="content">' + MD.render(ex.hint || "") + "</div></div>" +
+          '<div class="ex-box hidden" id="ans-' + box + '"><div class="ex-box-title">✅ 参考答案</div><div class="content">' + MD.render(ex.ans || "") + "</div></div></div>";
       });
       html += "</div>";
     }
@@ -473,9 +488,14 @@ const Pages = (() => {
     wkeys.forEach(key => {
       const m = key.split("#");
       const sec = Data.getSection(m[0]);
-      const label = sec ? U.escapeHtml(sec.id + " " + sec.title) : U.escapeHtml(key);
+      const exNo = parseInt(m[1], 10);
+      const label = sec
+        ? U.escapeHtml(sec.id + " " + sec.title + (isNaN(exNo) ? "" : " · 练习 " + (exNo + 1)))
+        : U.escapeHtml(key);
       html += '<div class="rev-card"><div class="ti"><b>' + label + "</b><small>错 " + wrong[key] + " 次</small></div>" +
-        (sec ? '<a class="btn small primary" href="#/sec/' + sec.id + '">重做</a>' : "") +
+        (sec && !isNaN(exNo)
+          ? '<button class="btn small primary" data-act="goto-ex" data-sec="' + sec.id + '" data-ex="' + exNo + '">重做</button>'
+          : (sec ? '<a class="btn small primary" href="#/sec/' + sec.id + '">重做</a>' : "")) +
         '<button class="btn small ghost" data-act="del-wrong" data-key="' + key + '">移除</button></div>';
     });
     html += "</div>";
